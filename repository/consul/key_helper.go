@@ -1,34 +1,36 @@
 package consul
 
 import (
-	"context"
 	"fmt"
+	"github.com/c12s/kuiper/model"
 	"github.com/google/uuid"
 )
 
 const (
-	groups              = "groups/%s/%s/%s/"
-	groupsNoLabels      = "groups/%s/%s/"
-	groupConfig         = "groups/%s/%s/%s/%s/"
-	groupConfigNoLabels = "groups/%s/%s/%s/"
+	groupConfig       = "groups/%s/%s/%s/%s/"
+	groupConfigFilter = "groups/%s/%s/%s/"
 )
 
 func generateUUID() string {
 	return uuid.New().String()
 }
 
-func constructGroupKey(ctx context.Context, id string, version string, labels string) string {
-	if labels == "" {
-		return fmt.Sprintf(groupsNoLabels, id, version)
+func constructGroupConfigKey(id string, version string, labels []model.Label, key string) string {
+	if len(labels) == 0 {
+		return fmt.Sprintf(groupConfig, id, version, "none", key)
 	} else {
-		return fmt.Sprintf(groups, id, version, labels)
+		labelsString := DecodeLabels(labels)
+
+		return fmt.Sprintf(groupConfig, id, version, labelsString, key)
 	}
 }
 
-func constructGroupConfigKey(ctx context.Context, groupId string, configId string, version string, labels string) string {
-	if labels == "" {
-		return fmt.Sprintf(groupConfigNoLabels, groupId, version, configId)
+func constructGroupConfigFilterKey(id string, version string, labels []model.Label) string {
+	if len(labels) == 0 {
+		return fmt.Sprintf(groupConfigFilter, id, version, "none")
 	} else {
-		return fmt.Sprintf(groupConfig, groupId, version, labels, configId)
+		labelsString := DecodeLabels(labels)
+
+		return fmt.Sprintf(groupConfigFilter, id, version, labelsString)
 	}
 }

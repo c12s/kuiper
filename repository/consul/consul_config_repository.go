@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"errors"
 	"fmt"
 	"github.com/c12s/kuiper/model"
 	"github.com/hashicorp/consul/api"
@@ -31,15 +32,67 @@ func New() (*ConsulConfigRepository, error) {
 }
 
 func (ccr ConsulConfigRepository) GetGroupConfigs(id string, version string, labels []model.Label) (map[string]string, error) {
-	return make(map[string]string), nil
+	kv := ccr.cli.KV()
+
+	configKey := constructGroupConfigFilterKey(id, version, labels)
+	pairs, _, err := kv.List(configKey, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if pairs == nil {
+		return nil, errors.New("Config not found")
+	}
+
+	configs := make(map[string]string)
+
+	for _, pair := range pairs {
+		configs[pair.Key] = string(pair.Value)
+	}
+
+	return configs, nil
 }
 
 func (ccr ConsulConfigRepository) CreateNewGroup(group model.Group) (model.Response, error) {
-	return model.Response{}, nil
+	kv := ccr.cli.KV()
+
+	id := generateUUID()
+	version := generateUUID()
+
+	for _, c := range group.Configs {
+		groupConfigKey := constructGroupConfigKey(id, version, c.Labels, c.Key)
+
+		p := &api.KVPair{Key: groupConfigKey, Value: []byte(c.Value)}
+
+		_, err := kv.Put(p, nil)
+
+		if err != nil {
+			return model.Response{}, err
+		}
+	}
+
+	return model.Response{id, version}, nil
 }
 
 func (ccr ConsulConfigRepository) CreateNewGroupVersion(id string, group model.Group) (model.Response, error) {
-	return model.Response{}, nil
+	kv := ccr.cli.KV()
+
+	version := generateUUID()
+
+	for _, c := range group.Configs {
+		groupConfigKey := constructGroupConfigKey(id, version, c.Labels, c.Key)
+
+		p := &api.KVPair{Key: groupConfigKey, Value: []byte(c.Value)}
+
+		_, err := kv.Put(p, nil)
+
+		if err != nil {
+			return model.Response{}, err
+		}
+	}
+
+	return model.Response{id, version}, nil
 }
 
 func (ccr ConsulConfigRepository) UpdateGroupVersion(id string, version string, group model.Group) error {
