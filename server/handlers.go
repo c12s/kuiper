@@ -50,3 +50,19 @@ func (ch configHandler) CreateConfig(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"id": cid})
 }
+
+func (ch configHandler) GetConfig(c *gin.Context) {
+	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.CreateConfig")
+	defer span.End()
+
+	id := c.Param("id")
+	ver := c.Param("ver")
+
+	cfg, err := ch.configService.GetConfig(ctx, id, ver)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error:": "No value under key"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cfg)
+}

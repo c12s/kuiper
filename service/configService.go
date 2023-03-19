@@ -4,25 +4,34 @@ import (
 	"context"
 	"kuiper/model"
 	"kuiper/store"
+	"log"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ConfigService interface {
-	CreateConfig(ctx context.Context, config model.Config) (string, error)
-	GetConfig(id string) (model.Config, error)
+	CreateConfig(ctx context.Context, cfg model.Config) (string, error)
+	GetConfig(ctx context.Context, id, ver string) (model.Config, error)
 }
 
-func NewConfigService(cs store.ConfigStore) ConfigService {
-	return configService{store: cs}
+func NewConfigService(cs store.ConfigStore, logger log.Logger, trace trace.Tracer) ConfigService {
+	return configService{store: cs, logger: logger, trace: trace}
 }
 
 type configService struct {
-	store store.ConfigStore
+	store  store.ConfigStore
+	logger log.Logger
+	trace  trace.Tracer
 }
 
-func (cs configService) CreateConfig(ctx context.Context, config model.Config) (string, error) {
-	return cs.store.CreateConfig(config, context.TODO())
+func (cs configService) CreateConfig(ctx context.Context, cfg model.Config) (string, error) {
+	nCtx, span := cs.trace.Start(ctx, "configService.CreateConfig")
+	defer span.End()
+	return cs.store.CreateConfig(nCtx, cfg)
 }
 
-func (cs configService) GetConfig(id string) (model.Config, error) {
-	return cs.store.GetConfig(id, context.TODO())
+func (cs configService) GetConfig(ctx context.Context, id, ver string) (model.Config, error) {
+	nCtx, span := cs.trace.Start(ctx, "configService.GetConfig")
+	defer span.End()
+	return cs.store.GetConfig(nCtx, id, ver)
 }
