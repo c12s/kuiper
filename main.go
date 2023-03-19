@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"kuiper/server"
+	"kuiper/service"
+	"kuiper/store"
+	"kuiper/util"
 	"log"
 	"net/http"
 	"os"
@@ -11,13 +14,43 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 func main() {
+	logger := log.Default()
+
+	ctx := context.Background()
+	//init exporter
+	exporter, err := util.NewJaegerExporter("http://127.0.0.1:14268/api/traces")
+	if err != nil {
+		logger.Fatalf(err.Error())
+	}
+	//init traceprovider
+	tp := util.NewTraceProvider(exporter)
+	defer func() { _ = tp.Shutdown(ctx) }()
+	otel.SetTracerProvider(tp)
+	tracer := tp.Tracer("kuiper")
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
 	router := gin.New()
-	handler := server.NewConfigHandler()
+	router.Use(gin.Recovery())
+	router.Use(otelgin.Middleware("kuiper"))
+
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"http://127.0.0.1:2379"},
+		DialTimeout: 10 * time.Second,
+	})
+
+	cfgStore := store.NewConfigStore(*cli, *logger, tracer)
+	cfgService := service.NewConfigService(cfgStore, *logger, tracer)
+	handler := server.NewConfigHandler(tracer, *logger, cfgService)
 
 	router.POST("/api/config", handler.CreateConfig)
+	router.GET("/api/config/:id/:ver", handler.GetConfig)
 
 	// start server
 	srv := &http.Server{Addr: "0.0.0.0:8080", Handler: router}
