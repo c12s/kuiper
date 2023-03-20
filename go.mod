@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/google/uuid v1.3.0
+	github.com/nats-io/nats.go v1.24.0
 	go.etcd.io/etcd/client/v3 v3.5.7
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.40.0
 	go.opentelemetry.io/otel v1.14.0
@@ -33,6 +34,9 @@ require (
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/nats-io/nats-server/v2 v2.9.15 // indirect
+	github.com/nats-io/nkeys v0.3.0 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect

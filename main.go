@@ -49,8 +49,9 @@ func main() {
 	cfgService := service.NewConfigService(cfgStore, *logger, tracer)
 	handler := server.NewConfigHandler(tracer, *logger, cfgService)
 
-	router.POST("/api/config", handler.CreateConfig)
+	router.POST("/api/config", handler.SaveConfig)
 	router.GET("/api/config/:id/:ver", handler.GetConfig)
+	router.POST("/api/config/:id/", handler.CreateNewVersion)
 
 	// start server
 	srv := &http.Server{Addr: "0.0.0.0:8080", Handler: router}
