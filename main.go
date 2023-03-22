@@ -52,6 +52,8 @@ func main() {
 	router.POST("/api/config", handler.SaveConfig)
 	router.GET("/api/config/:id/:ver", handler.GetConfig)
 	router.POST("/api/config/:id/", handler.CreateNewVersion)
+	router.DELETE("/api/config/:id/:ver", handler.DeleteConfig)
+	router.DELETE("/api/config/:id", handler.DeleteConfigsWithPrefix)
 
 	// start server
 	srv := &http.Server{Addr: "0.0.0.0:8080", Handler: router}

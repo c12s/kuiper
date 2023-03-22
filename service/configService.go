@@ -11,6 +11,7 @@ import (
 )
 
 var NoVersionError = errors.New("Must supply version name when creating a new config")
+var DbError = errors.New("Error happened while connecting to database")
 
 type ConfigService interface {
 	//Checks if cfg is a valid config and tries to persist it.
@@ -19,6 +20,10 @@ type ConfigService interface {
 	GetConfig(ctx context.Context, id, ver string) (map[string]string, error)
 	//Creates a new version of already existing config
 	CreateNewVersion(ctx context.Context, cfg model.Config, id string) error
+	//Deletes config by id and version, returns error when config wasn't foun
+	DeleteConfig(ctx context.Context, id, ver string) (cfg map[string]string, err error)
+	//Deletes all configs with the given ID
+	DeleteConfigsWithPrefix(ctx context.Context, id string) (deleted map[string]map[string]string, err error)
 }
 
 func NewConfigService(cs store.ConfigStore, logger log.Logger, trace trace.Tracer) ConfigService {
@@ -59,4 +64,16 @@ func (cs configService) CreateNewVersion(ctx context.Context, cfg model.Config, 
 	}
 
 	return cs.store.SaveVersion(nCtx, cfg, id)
+}
+
+func (cs configService) DeleteConfig(ctx context.Context, id, ver string) (cfg map[string]string, err error) {
+	nCtx, span := cs.trace.Start(ctx, "configService.DeleteConfig")
+	defer span.End()
+	return cs.store.DeleteConfig(nCtx, id, ver)
+}
+
+func (cs configService) DeleteConfigsWithPrefix(ctx context.Context, id string) (deleted map[string]map[string]string, err error) {
+	nCtx, span := cs.trace.Start(ctx, "configService.DeleteConfig")
+	defer span.End()
+	return cs.store.DeleteConfigsWithPrefix(nCtx, id)
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"kuiper/service"
+	"kuiper/store"
 	"mime"
 	"net/http"
 
@@ -61,7 +62,7 @@ func (ch configHandler) SaveConfig(c *gin.Context) {
 }
 
 func (ch configHandler) GetConfig(c *gin.Context) {
-	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.CreateConfig")
+	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.GetConfig")
 	defer span.End()
 
 	id := c.Param("id")
@@ -108,8 +109,15 @@ func (ch configHandler) CreateNewVersion(c *gin.Context) {
 	}
 
 	err = ch.configService.CreateNewVersion(ctx, rt, id)
-	if err == service.NoVersionError {
+	switch err {
+	case service.NoVersionError:
 		c.JSON(http.StatusBadRequest, gin.H{"error:": "No version supplied"})
+		return
+	case store.KeyAlreadyExistsError:
+		c.JSON(http.StatusConflict, gin.H{"error:": "Version already exists"})
+		return
+	case store.ErrorNotFound:
+		c.JSON(http.StatusNotFound, gin.H{"error:": "Configuration with given ID doesn't exist"})
 		return
 	}
 	if err != nil {
@@ -119,4 +127,36 @@ func (ch configHandler) CreateNewVersion(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 	return
+}
+
+func (ch configHandler) DeleteConfig(c *gin.Context) {
+	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.DeleteConfig")
+	defer span.End()
+
+	id := c.Param("id")
+	ver := c.Param("ver")
+
+	cfg, err := ch.configService.DeleteConfig(ctx, id, ver)
+	if err == store.ErrorNotFound {
+		c.JSON(http.StatusNotFound, gin.H{"error:": "Configuration with the given ID and version doesn't exist"})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Failure when connecting to database"})
+	}
+
+	c.JSON(http.StatusOK, cfg)
+}
+
+func (ch configHandler) DeleteConfigsWithPrefix(c *gin.Context) {
+	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.DeleteConfigsWithPrefix")
+	defer span.End()
+
+	id := c.Param("id")
+
+	cfg, err := ch.configService.DeleteConfigsWithPrefix(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Failure when connecting to database"})
+	}
+
+	c.JSON(http.StatusOK, cfg)
 }

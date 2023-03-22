@@ -11,6 +11,9 @@ import (
 type ConfigHandler interface {
 	SaveConfig(c *gin.Context)
 	GetConfig(c *gin.Context)
+	DeleteConfig(c *gin.Context)
+	CreateNewVersion(c *gin.Context)
+	DeleteConfigsWithPrefix(c *gin.Context)
 }
 
 type configHandler struct {
