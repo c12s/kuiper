@@ -16,3 +16,14 @@ func decodeConfigBody(r io.Reader) (model.Config, error) {
 	}
 	return *config, nil
 }
+
+func decodeNewConfigBody(r io.Reader) (model.NewConfigDto, error) {
+	dec := json.NewDecoder(r)
+	dec.DisallowUnknownFields()
+
+	var config *model.NewConfigDto
+	if err := dec.Decode(&config); err != nil {
+		return model.NewConfigDto{}, err
+	}
+	return *config, nil
+}

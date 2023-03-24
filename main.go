@@ -45,9 +45,11 @@ func main() {
 		DialTimeout: 10 * time.Second,
 	})
 
+	natsCon, err := util.Conn("http://127.0.0.1:4222")
+
 	cfgStore := store.NewConfigStore(*cli, *logger, tracer)
 	cfgService := service.NewConfigService(cfgStore, *logger, tracer)
-	handler := server.NewConfigHandler(tracer, *logger, cfgService)
+	handler := server.NewConfigHandler(tracer, *logger, cfgService, *natsCon)
 
 	router.POST("/api/config", handler.SaveConfig)
 	router.GET("/api/config/:id/:ver", handler.GetConfig)

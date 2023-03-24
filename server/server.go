@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -20,8 +21,9 @@ type configHandler struct {
 	tracer        trace.Tracer
 	logger        log.Logger
 	configService service.ConfigService
+	nats          nats.Conn
 }
 
-func NewConfigHandler(tracer trace.Tracer, logger log.Logger, configService service.ConfigService) configHandler {
-	return configHandler{tracer: tracer, logger: logger, configService: configService}
+func NewConfigHandler(tracer trace.Tracer, logger log.Logger, configService service.ConfigService, conn nats.Conn) configHandler {
+	return configHandler{tracer: tracer, logger: logger, configService: configService, nats: conn}
 }

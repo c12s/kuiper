@@ -1,7 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"kuiper/model"
 	"kuiper/service"
 	"kuiper/store"
 	"mime"
@@ -9,6 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func natsKey(serviceName string) string {
+	return fmt.Sprintf("config.%s", serviceName)
+}
 
 func (ch configHandler) SaveConfig(c *gin.Context) {
 	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.CreateConfig")
@@ -32,19 +39,15 @@ func (ch configHandler) SaveConfig(c *gin.Context) {
 		return
 	}
 
-	rt, err := decodeConfigBody(c.Request.Body)
-	if err != nil || rt.Entries == nil {
+	newCfg, err := decodeNewConfigBody(c.Request.Body)
+	if err != nil || newCfg.Entries == nil {
 		span.RecordError(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Invalid JSON"})
 		return
 	}
 
-	// if ch.idempotencyService.FindRequestId(ctx, requestId) == true {
-	// 	http.Error(c.Writer, "Request has been already sent", http.StatusBadRequest)
-	// 	return
-	// }
-
-	cid, err := ch.configService.CreateConfig(ctx, rt)
+	config := model.Config{Version: newCfg.Version, Entries: newCfg.Entries}
+	cid, err := ch.configService.CreateConfig(ctx, config)
 	if err == service.NoVersionError {
 		c.JSON(http.StatusBadRequest, gin.H{"error:": "No version supplied"})
 		return
@@ -53,11 +56,8 @@ func (ch configHandler) SaveConfig(c *gin.Context) {
 		return
 	}
 
-	// reqId := ""
-	// if err == nil {
-	// 	reqId = ts.idempotencyService.SaveRequestId(ctx)
-	// }
-
+	cfgJson, _ := json.Marshal(config.Entries)
+	ch.nats.Publish(natsKey(newCfg.ServiceName), cfgJson)
 	c.JSON(http.StatusOK, gin.H{"id": cid})
 }
 
