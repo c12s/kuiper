@@ -9,7 +9,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -17,8 +16,8 @@ import (
 var ErrorNotFound = errors.New("Config not found")
 var KeyAlreadyExistsError = errors.New("Version already exists for the given ID")
 
-//ConfigStore is used for persistance of configurations.
-//Configs are uniquely identified by ID and version. Each ID can have multiple versions.
+// ConfigStore is used for persistance of configurations.
+// Configs are uniquely identified by ID and version. Each ID can have multiple versions.
 type ConfigStore interface {
 	//SaveConfig() persists a config and returns it's ID as string.
 	SaveConfig(ctx context.Context, cfg model.Config) (string, error)
@@ -56,7 +55,7 @@ func (cStore configStoreEtcd) SaveConfig(ctx context.Context, cfg model.Config) 
 	defer span.End()
 
 	var id string
-	id = uuid.NewString()
+	id = cfg.Service
 
 	key := makeKey(id, cfg.Version)
 
@@ -67,10 +66,16 @@ func (cStore configStoreEtcd) SaveConfig(ctx context.Context, cfg model.Config) 
 	}
 
 	kvCtx, cancel := context.WithTimeout(ctx, time.Second*10)
-	_, err = cStore.cli.KV.Put(kvCtx, key, string(jsonB))
+	op := clientv3.OpPut(key, string(jsonB))
+	res, err := cStore.cli.Txn(kvCtx).If(clientv3.Compare(clientv3.Version(key), "=", 0)).Then(op).Commit()
 	cancel()
 	if err != nil {
 		span.RecordError(err)
+		return "", err
+	}
+	if !res.Succeeded {
+		err = KeyAlreadyExistsError
+		span.RecordError(KeyAlreadyExistsError)
 		return "", err
 	}
 
@@ -172,7 +177,7 @@ func (cStore configStoreEtcd) DeleteConfig(ctx context.Context, id, ver string) 
 	}
 
 	kvs := res.PrevKvs
-	if len(kvs) > 0 {
+	if res.Deleted > 0 {
 		kv := kvs[0]
 		data := kv.Value
 		err = json.Unmarshal(data, &entries)
@@ -187,7 +192,7 @@ func (cStore configStoreEtcd) DeleteConfig(ctx context.Context, id, ver string) 
 }
 
 func (cStore configStoreEtcd) DeleteConfigsWithPrefix(ctx context.Context, id string) (map[string]map[string]string, error) {
-	_, span := cStore.trace.Start(ctx, "configStoreEtcd.DeleteConfig")
+	_, span := cStore.trace.Start(ctx, "configStoreEtcd.DeleteConfigWithPrefix")
 	defer span.End()
 
 	cfgs := make(map[string]map[string]string)
@@ -199,6 +204,9 @@ func (cStore configStoreEtcd) DeleteConfigsWithPrefix(ctx context.Context, id st
 	if err != nil {
 		span.RecordError(err)
 		return cfgs, err
+	}
+	if res.Deleted == 0 {
+		return cfgs, ErrorNotFound
 	}
 
 	kvs := res.PrevKvs

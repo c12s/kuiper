@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"kuiper/model"
 	"kuiper/service"
 	"kuiper/store"
 	"mime"
@@ -35,29 +34,34 @@ func (ch configHandler) SaveConfig(c *gin.Context) {
 		err := errors.New("Expect application/json Content-Type")
 		span.RecordError(err)
 		http.Error(c.Writer, err.Error(), http.StatusUnsupportedMediaType)
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error:": "Only application/json is accepted"})
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "Only application/json is accepted"})
 		return
 	}
 
-	newCfg, err := decodeNewConfigBody(c.Request.Body)
+	newCfg, err := decodeConfigBody(c.Request.Body)
 	if err != nil || newCfg.Entries == nil {
 		span.RecordError(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Invalid JSON"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
-	config := model.Config{Version: newCfg.Version, Entries: newCfg.Entries}
-	cid, err := ch.configService.CreateConfig(ctx, config)
+	cid, err := ch.configService.CreateConfig(ctx, newCfg)
 	if err == service.NoVersionError {
-		c.JSON(http.StatusBadRequest, gin.H{"error:": "No version supplied"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No version supplied"})
+		return
+	} else if err == store.KeyAlreadyExistsError {
+		c.JSON(http.StatusConflict, gin.H{"error": "Version already exists for the service"})
+		return
+	} else if err == service.NoServiceNameError {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No service name supplied"})
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Error when saving config"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error when saving config"})
 		return
 	}
 
-	cfgJson, _ := json.Marshal(config.Entries)
-	ch.nats.Publish(natsKey(newCfg.ServiceName), cfgJson)
+	cfgJson, _ := json.Marshal(newCfg.Entries)
+	ch.nats.Publish(natsKey(newCfg.Service), cfgJson)
 	c.JSON(http.StatusOK, gin.H{"id": cid})
 }
 
@@ -70,7 +74,7 @@ func (ch configHandler) GetConfig(c *gin.Context) {
 
 	cfg, err := ch.configService.GetConfig(ctx, id, ver)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error:": "No value under key"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "No value under key"})
 		return
 	}
 
@@ -97,31 +101,31 @@ func (ch configHandler) CreateNewVersion(c *gin.Context) {
 		err := errors.New("Expect application/json Content-Type")
 		span.RecordError(err)
 		http.Error(c.Writer, err.Error(), http.StatusUnsupportedMediaType)
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error:": "Only application/json is accepted"})
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "Only application/json is accepted"})
 		return
 	}
 
 	rt, err := decodeConfigBody(c.Request.Body)
 	if err != nil || rt.Entries == nil {
 		span.RecordError(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Invalid JSON"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
 	err = ch.configService.CreateNewVersion(ctx, rt, id)
 	switch err {
 	case service.NoVersionError:
-		c.JSON(http.StatusBadRequest, gin.H{"error:": "No version supplied"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No version supplied"})
 		return
 	case store.KeyAlreadyExistsError:
-		c.JSON(http.StatusConflict, gin.H{"error:": "Version already exists"})
+		c.JSON(http.StatusConflict, gin.H{"error": "Version already exists"})
 		return
 	case store.ErrorNotFound:
-		c.JSON(http.StatusNotFound, gin.H{"error:": "Configuration with given ID doesn't exist"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Configuration with given ID doesn't exist"})
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Invalid JSON"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
@@ -138,10 +142,10 @@ func (ch configHandler) DeleteConfig(c *gin.Context) {
 
 	cfg, err := ch.configService.DeleteConfig(ctx, id, ver)
 	if err == store.ErrorNotFound {
-		c.JSON(http.StatusNotFound, gin.H{"error:": "Configuration with the given ID and version doesn't exist"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Configuration with the given ID and version doesn't exist"})
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Failure when connecting to database"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failure when connecting to database"})
 	}
 
 	c.JSON(http.StatusOK, cfg)
@@ -154,8 +158,13 @@ func (ch configHandler) DeleteConfigsWithPrefix(c *gin.Context) {
 	id := c.Param("id")
 
 	cfg, err := ch.configService.DeleteConfigsWithPrefix(ctx, id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error:": "Failure when connecting to database"})
+	if err == store.ErrorNotFound {
+		errorMsg := fmt.Sprintf("No configurations found for %s", id)
+		c.JSON(http.StatusNotFound, gin.H{"error": errorMsg})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failure when connecting to database"})
+		return
 	}
 
 	c.JSON(http.StatusOK, cfg)

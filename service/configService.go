@@ -11,6 +11,7 @@ import (
 )
 
 var NoVersionError = errors.New("Must supply version name when creating a new config")
+var NoServiceNameError = errors.New("Must supply service name when creating a new config")
 var DbError = errors.New("Error happened while connecting to database")
 
 type ConfigService interface {
@@ -43,6 +44,10 @@ func (cs configService) CreateConfig(ctx context.Context, cfg model.Config) (str
 	if len(cfg.Version) == 0 {
 		span.RecordError(NoVersionError)
 		return "", NoVersionError
+	}
+	if len(cfg.Service) == 0 {
+		span.RecordError(NoServiceNameError)
+		return "", NoServiceNameError
 	}
 
 	return cs.store.SaveConfig(nCtx, cfg)
