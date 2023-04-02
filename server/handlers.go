@@ -81,6 +81,29 @@ func (ch configHandler) GetConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, cfg)
 }
 
+func (ch configHandler) GetConfigsByService(c *gin.Context) {
+	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.GetConfigsByService")
+	defer span.End()
+
+	id := c.Param("id")
+	if c.Query("latest") == "true" {
+		cfg, err := ch.configService.GetLatestConfigByService(ctx, id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No value under key"})
+			return
+		}
+		c.JSON(http.StatusOK, cfg)
+		return
+	}
+	cfgs, err := ch.configService.GetConfigsByService(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No value under key"})
+		return
+	}
+	c.JSON(http.StatusOK, cfgs)
+
+}
+
 func (ch configHandler) CreateNewVersion(c *gin.Context) {
 	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.CreateNewVersion")
 	defer span.End()

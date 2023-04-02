@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"kuiper/model"
 	"log"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -28,7 +28,11 @@ type ConfigStore interface {
 	//Deletes a config and returns the config that was deleted
 	DeleteConfig(ctx context.Context, id, ver string) (map[string]string, error)
 	//Deletes all the configs with the given ID and returns them
-	DeleteConfigsWithPrefix(ctx context.Context, id string) (map[string]map[string]string, error)
+	DeleteConfigsWithPrefix(ctx context.Context, id string) (map[string]model.Entries, error)
+	//Gets all of the service's configs
+	GetConfigsByService(ctx context.Context, id string) (map[string]model.Entries, error)
+	//Gets only the latest config of a service
+	GetLatestConfigByService(ctx context.Context, id string) (map[string]model.Entries, error)
 }
 
 func NewConfigStore(cli clientv3.Client, logger log.Logger, trace trace.Tracer) ConfigStore {
@@ -39,15 +43,6 @@ type configStoreEtcd struct {
 	logger log.Logger
 	cli    clientv3.Client
 	trace  trace.Tracer
-}
-
-func makeKey(id, ver string) string {
-	key := fmt.Sprintf("config/%s/%s/", id, ver)
-	return key
-}
-func makeIdPrefix(id string) string {
-	key := fmt.Sprintf("config/%s/", id)
-	return key
 }
 
 func (cStore configStoreEtcd) SaveConfig(ctx context.Context, cfg model.Config) (string, error) {
@@ -109,6 +104,62 @@ func (cStore configStoreEtcd) GetConfig(ctx context.Context, id, ver string) (ma
 	}
 
 	return entries, ErrorNotFound
+}
+
+func (cStore configStoreEtcd) GetConfigsByService(ctx context.Context, id string) (map[string]model.Entries, error) {
+	ctx, span := cStore.trace.Start(ctx, "configStoreEtcd.GetConfigsByService")
+	defer span.End()
+
+	cfgs := make(map[string]model.Entries)
+
+	kvCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	res, err := cStore.cli.KV.Get(kvCtx, makeIdPrefix(id), clientv3.WithPrefix())
+	cancel()
+	if err != nil {
+		span.RecordError(err)
+		return cfgs, err
+	}
+
+	return cStore.decodeConfigsFromKvs(res.Kvs, ctx)
+}
+
+func (cStore configStoreEtcd) GetLatestConfigByService(ctx context.Context, id string) (map[string]model.Entries, error) {
+	ctx, span := cStore.trace.Start(ctx, "configStoreEtcd.GetLatestConfigByService")
+	defer span.End()
+
+	cfgs := make(map[string]model.Entries)
+
+	kvCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	opts := clientv3.WithLastRev()
+	opts = append(opts, clientv3.WithPrefix())
+	res, err := cStore.cli.KV.Get(kvCtx, makeIdPrefix(id), opts...)
+	cancel()
+	if err != nil {
+		span.RecordError(err)
+		return cfgs, err
+	}
+
+	return cStore.decodeConfigsFromKvs(res.Kvs, ctx)
+}
+
+func (cStore configStoreEtcd) decodeConfigsFromKvs(kvs []*mvccpb.KeyValue, ctx context.Context) (map[string]model.Entries, error) {
+	ctx, span := cStore.trace.Start(ctx, "configStoreEtcd.decodeConfigsFromKvs")
+	defer span.End()
+
+	cfgs := make(map[string]model.Entries)
+	for _, kv := range kvs {
+		cfg := make(map[string]string)
+		data := kv.Value
+		err := json.Unmarshal(data, &cfg)
+		if err != nil {
+			span.RecordError(err)
+			return cfgs, err
+		}
+
+		ver := getVersionFromKey(string(kv.Key))
+		cfgs[string(ver)] = cfg
+	}
+	return cfgs, nil
 }
 
 func (cStore configStoreEtcd) getPrefixCount(ctx context.Context, id string) (int64, error) {
@@ -191,8 +242,8 @@ func (cStore configStoreEtcd) DeleteConfig(ctx context.Context, id, ver string) 
 	return entries, ErrorNotFound
 }
 
-func (cStore configStoreEtcd) DeleteConfigsWithPrefix(ctx context.Context, id string) (map[string]map[string]string, error) {
-	_, span := cStore.trace.Start(ctx, "configStoreEtcd.DeleteConfigWithPrefix")
+func (cStore configStoreEtcd) DeleteConfigsWithPrefix(ctx context.Context, id string) (map[string]model.Entries, error) {
+	ctx, span := cStore.trace.Start(ctx, "configStoreEtcd.DeleteConfigWithPrefix")
 	defer span.End()
 
 	cfgs := make(map[string]map[string]string)
@@ -209,18 +260,5 @@ func (cStore configStoreEtcd) DeleteConfigsWithPrefix(ctx context.Context, id st
 		return cfgs, ErrorNotFound
 	}
 
-	kvs := res.PrevKvs
-	for _, kv := range kvs {
-		cfg := make(map[string]string)
-		data := kv.Value
-		err = json.Unmarshal(data, &cfg)
-		if err != nil {
-			span.RecordError(err)
-			return cfgs, err
-		}
-
-		cfgs[string(kv.Key)] = cfg
-	}
-
-	return cfgs, nil
+	return cStore.decodeConfigsFromKvs(res.PrevKvs, ctx)
 }

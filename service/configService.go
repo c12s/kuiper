@@ -18,13 +18,17 @@ type ConfigService interface {
 	//Checks if cfg is a valid config and tries to persist it.
 	CreateConfig(ctx context.Context, cfg model.Config) (string, error)
 	//Finds a config by id and version
-	GetConfig(ctx context.Context, id, ver string) (map[string]string, error)
+	GetConfig(ctx context.Context, id, ver string) (model.Entries, error)
 	//Creates a new version of already existing config
 	CreateNewVersion(ctx context.Context, cfg model.Config, id string) error
 	//Deletes config by id and version, returns error when config wasn't foun
-	DeleteConfig(ctx context.Context, id, ver string) (cfg map[string]string, err error)
+	DeleteConfig(ctx context.Context, id, ver string) (cfg model.Entries, err error)
 	//Deletes all configs with the given ID
-	DeleteConfigsWithPrefix(ctx context.Context, id string) (deleted map[string]map[string]string, err error)
+	DeleteConfigsWithPrefix(ctx context.Context, id string) (deleted map[string]model.Entries, err error)
+	//Gets the latest config of a service
+	GetLatestConfigByService(ctx context.Context, id string) (map[string]model.Entries, error)
+	//Gets all of the service's configs
+	GetConfigsByService(ctx context.Context, id string) (map[string]model.Entries, error)
 }
 
 func NewConfigService(cs store.ConfigStore, logger log.Logger, trace trace.Tracer) ConfigService {
@@ -53,10 +57,30 @@ func (cs configService) CreateConfig(ctx context.Context, cfg model.Config) (str
 	return cs.store.SaveConfig(nCtx, cfg)
 }
 
-func (cs configService) GetConfig(ctx context.Context, id, ver string) (map[string]string, error) {
+func (cs configService) GetConfig(ctx context.Context, id, ver string) (model.Entries, error) {
 	nCtx, span := cs.trace.Start(ctx, "configService.GetConfig")
 	defer span.End()
 	return cs.store.GetConfig(nCtx, id, ver)
+}
+
+var IdNotProvidedError = errors.New("Id not provided")
+
+func (cs configService) GetConfigsByService(ctx context.Context, id string) (map[string]model.Entries, error) {
+	nCtx, span := cs.trace.Start(ctx, "configService.GetConfigsByService")
+	defer span.End()
+	if id == "" {
+		return make(map[string]model.Entries), IdNotProvidedError
+	}
+	return cs.store.GetConfigsByService(nCtx, id)
+}
+
+func (cs configService) GetLatestConfigByService(ctx context.Context, id string) (map[string]model.Entries, error) {
+	nCtx, span := cs.trace.Start(ctx, "configService.GetConfigsByService")
+	defer span.End()
+	if id == "" {
+		return make(map[string]model.Entries), IdNotProvidedError
+	}
+	return cs.store.GetLatestConfigByService(nCtx, id)
 }
 
 func (cs configService) CreateNewVersion(ctx context.Context, cfg model.Config, id string) error {
@@ -71,13 +95,13 @@ func (cs configService) CreateNewVersion(ctx context.Context, cfg model.Config, 
 	return cs.store.SaveVersion(nCtx, cfg, id)
 }
 
-func (cs configService) DeleteConfig(ctx context.Context, id, ver string) (cfg map[string]string, err error) {
+func (cs configService) DeleteConfig(ctx context.Context, id, ver string) (cfg model.Entries, err error) {
 	nCtx, span := cs.trace.Start(ctx, "configService.DeleteConfig")
 	defer span.End()
 	return cs.store.DeleteConfig(nCtx, id, ver)
 }
 
-func (cs configService) DeleteConfigsWithPrefix(ctx context.Context, id string) (deleted map[string]map[string]string, err error) {
+func (cs configService) DeleteConfigsWithPrefix(ctx context.Context, id string) (deleted map[string]model.Entries, err error) {
 	nCtx, span := cs.trace.Start(ctx, "configService.DeleteConfig")
 	defer span.End()
 	return cs.store.DeleteConfigsWithPrefix(nCtx, id)

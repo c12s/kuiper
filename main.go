@@ -20,12 +20,18 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
+const kuiperName = "kuiper"
+
 func main() {
 	logger := log.Default()
+	config, err := server.NewConfig()
+	if err != nil {
+		logger.Fatalf("Error: %s", err.Error())
+	}
 
 	ctx := context.Background()
 	//init exporter
-	exporter, err := util.NewJaegerExporter("http://127.0.0.1:14268/api/traces")
+	exporter, err := util.NewJaegerExporter(config.JaegerAddress)
 	if err != nil {
 		logger.Fatalf(err.Error())
 	}
@@ -33,19 +39,25 @@ func main() {
 	tp := util.NewTraceProvider(exporter)
 	defer func() { _ = tp.Shutdown(ctx) }()
 	otel.SetTracerProvider(tp)
-	tracer := tp.Tracer("kuiper")
+	tracer := tp.Tracer(kuiperName)
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(otelgin.Middleware("kuiper"))
+	router.Use(otelgin.Middleware(kuiperName))
 
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"http://127.0.0.1:2379"},
+		Endpoints:   []string{config.EtcdAddress},
 		DialTimeout: 10 * time.Second,
 	})
+	if err != nil {
+		logger.Fatalf(err.Error())
+	}
 
-	natsCon, err := util.Conn("http://127.0.0.1:4222")
+	natsCon, err := util.Conn(config.NatsAddress)
+	if err != nil {
+		logger.Fatalf(err.Error())
+	}
 
 	cfgStore := store.NewConfigStore(*cli, *logger, tracer)
 	cfgService := service.NewConfigService(cfgStore, *logger, tracer)
@@ -53,6 +65,7 @@ func main() {
 
 	router.POST("/api/config", handler.SaveConfig)
 	router.GET("/api/config/:id/:ver", handler.GetConfig)
+	router.GET("/api/config/:id", handler.GetConfigsByService)
 	router.POST("/api/config/:id/", handler.CreateNewVersion)
 	router.DELETE("/api/config/:id/:ver", handler.DeleteConfig)
 	router.DELETE("/api/config/:id", handler.DeleteConfigsWithPrefix)

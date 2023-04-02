@@ -15,6 +15,7 @@ type ConfigHandler interface {
 	DeleteConfig(c *gin.Context)
 	CreateNewVersion(c *gin.Context)
 	DeleteConfigsWithPrefix(c *gin.Context)
+	GetConfigsByService(c *gin.Context)
 }
 
 type configHandler struct {
