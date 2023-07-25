@@ -1,38 +1,15 @@
-# Start from the latest golang base image
-FROM golang:latest as builder
-
-# Add Maintainer Info
-LABEL maintainer="Borisav Zivanovic <borisavzivanovic@gmail.com>"
-
-# Set the Current Working Directory inside the container
+FROM golang:alpine as build_container
 WORKDIR /app
-
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
+COPY ./go.mod ./go.sum ./
 RUN go mod download
-
-# Copy everything from the current directory to the Working Directory inside the container
-COPY . .
-
-# Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+COPY ./ .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o configServer .
 
 
-
-######## Start a new stage from scratch #######
-FROM alpine:latest  
-
-RUN apk --no-cache add ca-certificates
-
+FROM alpine
 WORKDIR /root/
+COPY --from=build_container /app/configServer .
 
-EXPOSE 8000
+EXPOSE 8080
 
-# Copy the Pre-built binary file from the previous stage
-COPY --from=builder /app/main .
-
-# Command to run the executable
-CMD ["./main"]
+ENTRYPOINT ["./configServer"]
