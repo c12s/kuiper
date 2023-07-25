@@ -12,10 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func natsKey(serviceName string) string {
-	return fmt.Sprintf("config.%s", serviceName)
-}
-
 func (ch configHandler) SaveConfig(c *gin.Context) {
 	ctx, span := ch.tracer.Start(c.Request.Context(), "configServer.CreateConfig")
 	defer span.End()
