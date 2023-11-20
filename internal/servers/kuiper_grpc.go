@@ -166,7 +166,9 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 	}
 	// query nodes
 	queryReq := &magnetarapi.QueryOrgOwnedNodesReq{
-		Org: req.OrgId,
+		Org:     req.OrgId,
+		SubId:   req.SubId,
+		SubKind: req.SubKind,
 	}
 	// mora rucno da se kopira jedan po jedan selektor
 	// todo: izmeni ovo ako je ikako moguce
