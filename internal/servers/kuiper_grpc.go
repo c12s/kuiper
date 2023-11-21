@@ -165,9 +165,20 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		log.Println(err)
 	}
 	// query nodes
-	queryResp, err := k.magnetar.QueryNodes(ctx, &magnetarapi.QueryNodesReq{
-		Queries: req.Queries,
-	})
+	queryReq := &magnetarapi.QueryOrgOwnedNodesReq{
+		Org:     req.OrgId,
+		SubId:   req.SubId,
+		SubKind: req.SubKind,
+	}
+	// mora rucno da se kopira jedan po jedan selektor
+	// todo: izmeni ovo ako je ikako moguce
+	query := make([]*magnetarapi.Selector, 0)
+	for _, selector := range req.Query {
+		s := copySelector(*selector)
+		query = append(query, &s)
+	}
+	queryReq.Query = query
+	queryResp, err := k.magnetar.QueryOrgOwnedNodes(ctx, queryReq)
 	if err != nil {
 		return nil, err
 	}
@@ -199,4 +210,12 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 
 func groupId(group *api.ConfigGroup) string {
 	return fmt.Sprintf("%s/%s/v%d", group.OrgId, group.Name, group.Version)
+}
+
+func copySelector(selector magnetarapi.Selector) magnetarapi.Selector {
+	return magnetarapi.Selector{
+		LabelKey: selector.LabelKey,
+		ShouldBe: selector.ShouldBe,
+		Value:    selector.Value,
+	}
 }
