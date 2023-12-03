@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+
 	"github.com/c12s/kuiper/pkg/api"
+	"github.com/c12s/kuiper/pkg/client/agent_queue"
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
 	"golang.org/x/exp/slices"
-	"log"
 )
 
 type KuiperGrpcServer struct {
@@ -19,27 +21,28 @@ type KuiperGrpcServer struct {
 	// kojim cvorovima su dodeljene koje konfiguracije
 	nodeConfigs map[string][]string
 	// kojim ns-ovima su dodeljene koje konfiguracije
-	nsConfigs     map[string][]string
-	conn          *nats.Conn
-	magnetar      magnetarapi.MagnetarClient
-	evaluator     oortapi.OortEvaluatorClient
-	administrator *oortapi.AdministrationAsyncClient
+	nsConfigs        map[string][]string
+	conn             *nats.Conn
+	magnetar         magnetarapi.MagnetarClient
+	agentQueueClient agent_queue.AgentQueueClient
+	evaluator        oortapi.OortEvaluatorClient
+	administrator    *oortapi.AdministrationAsyncClient
 }
 
-func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evaluator oortapi.OortEvaluatorClient, administrator *oortapi.AdministrationAsyncClient) api.KuiperServer {
+func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evaluator oortapi.OortEvaluatorClient, administrator *oortapi.AdministrationAsyncClient, agentQueueClient agent_queue.AgentQueueClient) api.KuiperServer {
 	return &KuiperGrpcServer{
-		configs:       make(map[string]*api.ConfigGroup),
-		nodeConfigs:   make(map[string][]string),
-		nsConfigs:     make(map[string][]string),
-		conn:          conn,
-		magnetar:      magnetar,
-		evaluator:     evaluator,
-		administrator: administrator,
+		configs:          make(map[string]*api.ConfigGroup),
+		nodeConfigs:      make(map[string][]string),
+		nsConfigs:        make(map[string][]string),
+		conn:             conn,
+		magnetar:         magnetar,
+		agentQueueClient: agentQueueClient,
+		evaluator:        evaluator,
+		administrator:    administrator,
 	}
 }
 
 func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfigGroupReq) (*api.PutConfigGroupResp, error) {
-	// proveri da li korisnik sme da dodaje/manja konfiguraciju unutar zadate organizacije
 	resp, err := k.evaluator.Authorize(ctx, &oortapi.AuthorizationReq{
 		Subject: &oortapi.Resource{
 			Id:   req.SubId,
@@ -58,12 +61,10 @@ func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfig
 		return nil, errors.New("unauthorized")
 	}
 	key := groupId(req.Group)
-	// ne treba da postoji trenutna verzija
 	_, ok := k.configs[key]
 	if ok {
 		return nil, errors.New("config group version already exists")
 	}
-	// treba da postoji prethodna verzija
 	if req.Group.Version > 1 {
 		prevGroup := proto.Clone(req.Group).(*api.ConfigGroup)
 		prevGroup.Version = req.Group.Version - 1
@@ -74,6 +75,7 @@ func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfig
 		}
 	}
 	k.configs[key] = req.Group
+	log.Printf("NEW CONFIGS %v\n", k.configs)
 	// javi oort-u da je nova config dodata u org
 	err = k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
@@ -102,6 +104,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		Version: req.Version,
 	}
 	groupId := groupId(group)
+	log.Printf("GROUP IF %s\n", groupId)
 	// authorize - da li sub sme da pristupi konfiguraciji
 	resp, err := k.evaluator.Authorize(ctx, &oortapi.AuthorizationReq{
 		Subject: &oortapi.Resource{
@@ -144,11 +147,10 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		return nil, errors.New("unauthorized - namespace.put")
 	}
 	// todo: check if namespace exists
-	// dodaj config u ns ako vec nije postojao
 	if !slices.Contains(k.nsConfigs[req.Namespace], groupId) {
 		k.nsConfigs[req.Namespace] = append(k.nodeConfigs[req.Namespace], groupId)
 	}
-	// javi oort-u da je nova config dodata u ns
+
 	err = k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   req.Namespace,
@@ -164,21 +166,11 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 	if err != nil {
 		log.Println(err)
 	}
-	// query nodes
-	queryReq := &magnetarapi.QueryOrgOwnedNodesReq{
-		Org:     req.OrgId,
-		SubId:   req.SubId,
-		SubKind: req.SubKind,
-	}
-	// mora rucno da se kopira jedan po jedan selektor
-	// todo: izmeni ovo ako je ikako moguce
-	query := make([]*magnetarapi.Selector, 0)
-	for _, selector := range req.Query {
-		s := copySelector(*selector)
-		query = append(query, &s)
-	}
-	queryReq.Query = query
-	queryResp, err := k.magnetar.QueryOrgOwnedNodes(ctx, queryReq)
+
+	queryResp, err := k.magnetar.QueryNodes(ctx, &magnetarapi.QueryNodesReq{
+		Queries: req.Queries,
+	})
+	log.Printf("Query Resp %+v\n", queryResp)
 	if err != nil {
 		return nil, err
 	}
@@ -188,34 +180,39 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		Configs: group.Configs,
 	}
 	cmdMarshalled, err := cmd.Marshal()
+
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
-	// todo: scheduler notifies the nodes, we should only generate subjects and marshalled messages here
+
 	for _, node := range queryResp.Nodes {
-		// preskoci cvor ako on vec ima tu konfiguraciju
+		log.Printf("Inside with node %+v\n", node)
 		if slices.Contains(k.nodeConfigs[node.Id], groupId) {
+			log.Printf("Skipping node %s as configuration as already present.", node.Id)
 			continue
 		}
-		err = k.conn.Publish(api.Subject(node.Id), cmdMarshalled)
+
+		err = deseminateConfig(ctx, node.Id, cmdMarshalled, k.agentQueueClient)
 		if err != nil {
 			log.Println(err)
 		} else {
-			// cvor sada ima tu konfiguraciju
 			k.nodeConfigs[node.Id] = append(k.nodeConfigs[node.Id], groupId)
 		}
 	}
 	return &api.ApplyConfigGroupResp{}, nil
 }
 
-func groupId(group *api.ConfigGroup) string {
-	return fmt.Sprintf("%s/%s/v%d", group.OrgId, group.Name, group.Version)
+func deseminateConfig(ctx context.Context, nodeId string, cmd []byte, agentQueueClient agent_queue.AgentQueueClient) error {
+	log.Printf("Deseminating to node %s", nodeId)
+	_, err := agentQueueClient.DeseminateConfig(ctx, &agent_queue.DeseminateConfigRequest{
+		NodeId: nodeId,
+		Config: cmd,
+	})
+
+	return err
 }
 
-func copySelector(selector magnetarapi.Selector) magnetarapi.Selector {
-	return magnetarapi.Selector{
-		LabelKey: selector.LabelKey,
-		ShouldBe: selector.ShouldBe,
-		Value:    selector.Value,
-	}
+func groupId(group *api.ConfigGroup) string {
+	return fmt.Sprintf("%s/%s/v%d", group.OrgId, group.Name, group.Version)
 }

@@ -151,7 +151,8 @@ type ApplyConfigCommand struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id      string    `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	//string namespace = 2;
 	Configs []*Config `protobuf:"bytes,2,rep,name=configs,proto3" json:"configs,omitempty"`
 }
 
