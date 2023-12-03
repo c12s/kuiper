@@ -3,17 +3,19 @@ package startup
 import (
 	"context"
 	"errors"
+	"log"
+	"net"
+	"sync"
+
 	"github.com/c12s/kuiper/internal/configs"
 	"github.com/c12s/kuiper/internal/servers"
 	"github.com/c12s/kuiper/pkg/api"
+	"github.com/c12s/kuiper/pkg/client/agent_queue"
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"log"
-	"net"
-	"sync"
 )
 
 type app struct {
@@ -23,6 +25,7 @@ type app struct {
 	evaluatorClient           oortapi.OortEvaluatorClient
 	administratorClient       *oortapi.AdministrationAsyncClient
 	magnetarClient            magnetarapi.MagnetarClient
+	agentQueueClient          agent_queue.AgentQueueClient
 	shutdownProcesses         []func()
 	gracefulShutdownProcesses []func(wg *sync.WaitGroup)
 }
@@ -82,6 +85,7 @@ func (a *app) init() {
 	})
 
 	a.initMagnetarClient()
+	a.initAgentQueueClient()
 	a.initAdministratorClient()
 	a.initEvaluatorClient()
 	a.initKuiperGrpcServer(natsConn)
@@ -102,13 +106,16 @@ func (a *app) initKuiperGrpcServer(conn *nats.Conn) {
 	if a.magnetarClient == nil {
 		log.Fatalln("magnetar client is nil")
 	}
+	if a.agentQueueClient == nil {
+		log.Fatalln("blackhole client is nil")
+	}
 	if a.evaluatorClient == nil {
 		log.Fatalln("evaluator client is nil")
 	}
 	if a.administratorClient == nil {
 		log.Fatalln("administrator client is nil")
 	}
-	a.kuiperGrpcServer = servers.NewKuiperServer(conn, a.magnetarClient, a.evaluatorClient, a.administratorClient)
+	a.kuiperGrpcServer = servers.NewKuiperServer(conn, a.magnetarClient, a.evaluatorClient, a.administratorClient, a.agentQueueClient)
 }
 
 func (a *app) initEvaluatorClient() {
@@ -133,6 +140,16 @@ func (a *app) initMagnetarClient() {
 		log.Fatalln(err)
 	}
 	a.magnetarClient = client
+}
+
+func (a *app) initAgentQueueClient() {
+	client, err := newAgentQueueClient(a.config.AgentQueueAddress())
+	log.Printf("AgentQueue Address %s\n", a.config.AgentQueueAddress())
+	log.Printf("%+v\n", client)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	a.agentQueueClient = client
 }
 
 func (a *app) startGrpcServer() error {
