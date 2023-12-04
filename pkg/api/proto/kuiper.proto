@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+import "kuiper_model.proto";
+import "magnetar.proto";
+
+package proto;
+
+service Kuiper {
+  rpc PutConfigGroup(PutConfigGroupReq) returns (PutConfigGroupResp) {}
+  rpc ApplyConfigGroup(ApplyConfigGroupReq) returns (ApplyConfigGroupResp) {}
+}
+
+message PutConfigGroupReq {
+  ConfigGroup group = 1;
+  string subId = 2;
+  string subKind = 3;
+}
+
+message PutConfigGroupResp {
+  ConfigGroup group = 1;
+}
+
+message ApplyConfigGroupReq {
+  string groupName = 1;
+  string orgId = 2;
+  int32 version = 3;
+  string namespace = 4;
+  repeated Selector query = 5;
+  string subId = 6;
+  string subKind = 7;
+}
+
+message ApplyConfigGroupResp {
+
+}
