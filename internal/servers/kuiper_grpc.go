@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/c12s/kuiper/internal/services"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	apolloapi "iam-service/proto1"
 	"log"
 
 	"github.com/c12s/kuiper/pkg/api"
@@ -25,11 +29,11 @@ type KuiperGrpcServer struct {
 	conn             *nats.Conn
 	magnetar         magnetarapi.MagnetarClient
 	agentQueueClient agent_queue.AgentQueueClient
-	evaluator        oortapi.OortEvaluatorClient
 	administrator    *oortapi.AdministrationAsyncClient
+	authorizer       services.AuthZService
 }
 
-func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evaluator oortapi.OortEvaluatorClient, administrator *oortapi.AdministrationAsyncClient, agentQueueClient agent_queue.AgentQueueClient) api.KuiperServer {
+func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evaluator oortapi.OortEvaluatorClient, administrator *oortapi.AdministrationAsyncClient, agentQueueClient agent_queue.AgentQueueClient, authorizer services.AuthZService) api.KuiperServer {
 	return &KuiperGrpcServer{
 		configs:          make(map[string]*api.ConfigGroup),
 		nodeConfigs:      make(map[string][]string),
@@ -37,27 +41,13 @@ func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evalu
 		conn:             conn,
 		magnetar:         magnetar,
 		agentQueueClient: agentQueueClient,
-		evaluator:        evaluator,
 		administrator:    administrator,
+		authorizer:       authorizer,
 	}
 }
 
 func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfigGroupReq) (*api.PutConfigGroupResp, error) {
-	resp, err := k.evaluator.Authorize(ctx, &oortapi.AuthorizationReq{
-		Subject: &oortapi.Resource{
-			Id:   req.SubId,
-			Kind: req.SubKind,
-		},
-		Object: &oortapi.Resource{
-			Id:   req.Group.OrgId,
-			Kind: "org",
-		},
-		PermissionName: "config.put",
-	})
-	if err != nil {
-		return nil, err
-	}
-	if !resp.Authorized {
+	if !k.authorizer.Authorize(ctx, "config.put", "org", req.Group.OrgId) {
 		return nil, errors.New("unauthorized")
 	}
 	key := groupId(req.Group)
@@ -77,7 +67,7 @@ func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfig
 	k.configs[key] = req.Group
 	log.Printf("NEW CONFIGS %v\n", k.configs)
 	// javi oort-u da je nova config dodata u org
-	err = k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
+	err := k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   req.Group.OrgId,
 			Kind: "org",
@@ -106,21 +96,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 	groupId := groupId(group)
 	log.Printf("GROUP IF %s\n", groupId)
 	// authorize - da li sub sme da pristupi konfiguraciji
-	resp, err := k.evaluator.Authorize(ctx, &oortapi.AuthorizationReq{
-		Subject: &oortapi.Resource{
-			Id:   req.SubId,
-			Kind: req.SubKind,
-		},
-		Object: &oortapi.Resource{
-			Id:   groupId,
-			Kind: "config",
-		},
-		PermissionName: "config.get",
-	})
-	if err != nil {
-		return nil, err
-	}
-	if !resp.Authorized {
+	if !k.authorizer.Authorize(ctx, "config.get", "config", groupId) {
 		return nil, errors.New("unauthorized - config.get")
 	}
 	// check if config exists
@@ -129,21 +105,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		return nil, errors.New("config not found")
 	}
 	// authorize - da li sme da menja namespace
-	resp, err = k.evaluator.Authorize(ctx, &oortapi.AuthorizationReq{
-		Subject: &oortapi.Resource{
-			Id:   req.SubId,
-			Kind: req.SubKind,
-		},
-		Object: &oortapi.Resource{
-			Id:   req.Namespace,
-			Kind: "namespace",
-		},
-		PermissionName: "namespace.putconfig",
-	})
-	if err != nil {
-		return nil, err
-	}
-	if !resp.Authorized {
+	if !k.authorizer.Authorize(ctx, "namespace.putconfig", "namespace", req.Namespace) {
 		return nil, errors.New("unauthorized - namespace.put")
 	}
 	// todo: check if namespace exists
@@ -151,7 +113,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		k.nsConfigs[req.Namespace] = append(k.nodeConfigs[req.Namespace], groupId)
 	}
 
-	err = k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
+	err := k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   req.Namespace,
 			Kind: "namespace",
@@ -169,9 +131,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 
 	// query nodes
 	queryReq := &magnetarapi.QueryOrgOwnedNodesReq{
-		Org:     req.OrgId,
-		SubId:   req.SubId,
-		SubKind: req.SubKind,
+		Org: req.OrgId,
 	}
 	// mora rucno da se kopira jedan po jedan selektor
 	// todo: izmeni ovo ako je ikako moguce
@@ -181,6 +141,12 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 		query = append(query, &s)
 	}
 	queryReq.Query = query
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		log.Println("no metadata in ctx when sending req to magnetar")
+	} else {
+		ctx = metadata.NewOutgoingContext(ctx, md)
+	}
 	queryResp, err := k.magnetar.QueryOrgOwnedNodes(ctx, queryReq)
 	log.Printf("Query Resp %+v\n", queryResp)
 	if err != nil {
@@ -234,5 +200,28 @@ func copySelector(selector *magnetarapi.Selector) magnetarapi.Selector {
 		LabelKey: selector.LabelKey,
 		ShouldBe: selector.ShouldBe,
 		Value:    selector.Value,
+	}
+}
+
+func GetAuthInterceptor(apollo apolloapi.AuthServiceClient) func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok && len(md.Get("authn-token")) > 0 {
+			authnToken := md.Get("authn-token")[0]
+			log.Println(authnToken)
+			verifyResp, err := apollo.VerifyToken(ctx, &apolloapi.Token{Token: authnToken})
+			if err != nil {
+				log.Println(err)
+				// Calls the handler
+				return handler(ctx, req)
+			}
+			if !verifyResp.Token.Verified {
+				log.Println("token invalid")
+				return handler(ctx, req)
+			}
+			ctx = context.WithValue(ctx, "authz-token", verifyResp.Token.Jwt)
+		}
+		// Calls the handler
+		return handler(ctx, req)
 	}
 }
