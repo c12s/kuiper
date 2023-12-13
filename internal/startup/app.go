@@ -3,6 +3,8 @@ package startup
 import (
 	"context"
 	"errors"
+	"github.com/c12s/kuiper/internal/services"
+	apolloapi "iam-service/proto1"
 	"log"
 	"net"
 	"sync"
@@ -26,6 +28,8 @@ type app struct {
 	administratorClient       *oortapi.AdministrationAsyncClient
 	magnetarClient            magnetarapi.MagnetarClient
 	agentQueueClient          agent_queue.AgentQueueClient
+	apolloClient              apolloapi.AuthServiceClient
+	authzService              services.AuthZService
 	shutdownProcesses         []func()
 	gracefulShutdownProcesses []func(wg *sync.WaitGroup)
 }
@@ -88,6 +92,8 @@ func (a *app) init() {
 	a.initAgentQueueClient()
 	a.initAdministratorClient()
 	a.initEvaluatorClient()
+	a.initApolloClient()
+	a.initAuthZService()
 	a.initKuiperGrpcServer(natsConn)
 	a.initGrpcServer()
 }
@@ -96,7 +102,7 @@ func (a *app) initGrpcServer() {
 	if a.kuiperGrpcServer == nil {
 		log.Fatalln("kuiper grpc server is nil")
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.UnaryInterceptor(servers.GetAuthInterceptor(a.apolloClient)))
 	api.RegisterKuiperServer(s, a.kuiperGrpcServer)
 	reflection.Register(s)
 	a.grpcServer = s
@@ -115,7 +121,7 @@ func (a *app) initKuiperGrpcServer(conn *nats.Conn) {
 	if a.administratorClient == nil {
 		log.Fatalln("administrator client is nil")
 	}
-	a.kuiperGrpcServer = servers.NewKuiperServer(conn, a.magnetarClient, a.evaluatorClient, a.administratorClient, a.agentQueueClient)
+	a.kuiperGrpcServer = servers.NewKuiperServer(conn, a.magnetarClient, a.evaluatorClient, a.administratorClient, a.agentQueueClient, a.authzService)
 }
 
 func (a *app) initEvaluatorClient() {
@@ -150,6 +156,18 @@ func (a *app) initAgentQueueClient() {
 		log.Fatalln(err)
 	}
 	a.agentQueueClient = client
+}
+
+func (a *app) initApolloClient() {
+	client, err := newApolloClient(a.config.ApolloAddress())
+	if err != nil {
+		log.Fatalln(err)
+	}
+	a.apolloClient = client
+}
+
+func (a *app) initAuthZService() {
+	a.authzService = services.NewAuthZService(a.config.TokenKey())
 }
 
 func (a *app) startGrpcServer() error {

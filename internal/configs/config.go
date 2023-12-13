@@ -9,7 +9,9 @@ type Config struct {
 	magnetarAddress   string
 	agentQueueAddress string
 	oortAddress       string
+	apolloAddress     string
 	serverAddress     string
+	tokenKey          string
 }
 
 func (c *Config) NatsAddress() string {
@@ -28,8 +30,16 @@ func (c *Config) OortAddress() string {
 	return c.oortAddress
 }
 
+func (c *Config) ApolloAddress() string {
+	return c.apolloAddress
+}
+
 func (c *Config) ServerAddress() string {
 	return c.serverAddress
+}
+
+func (c *Config) TokenKey() string {
+	return c.tokenKey
 }
 
 func NewFromEnv() (*Config, error) {
@@ -38,6 +48,8 @@ func NewFromEnv() (*Config, error) {
 		magnetarAddress:   os.Getenv("MAGNETAR_ADDRESS"),
 		agentQueueAddress: os.Getenv("AGENT_QUEUE_ADDRESS"),
 		oortAddress:       os.Getenv("OORT_ADDRESS"),
+		apolloAddress:     os.Getenv("APOLLO_ADDRESS"),
 		serverAddress:     os.Getenv("KUIPER_ADDRESS"),
+		tokenKey:          os.Getenv("SECRET_KEY"),
 	}, nil
 }
