@@ -1,23 +1,42 @@
 version: '3'
 services: 
-  consul:
-    image: consul
+  # consul:
+  #   image: consul
+  #   ports:
+  #     - "8500:8500"
+  #     - "8600:8600/tcp"
+  #     - "8600:8600/udp"
+  #   command: "agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0"
+  #   volumes:
+  #     - /home/borisavz/consul:/consul/data
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.0 # Use the desired etcd version
+    command: ["etcd", "--advertise-client-urls=http://0.0.0.0:2379", "--listen-client-urls=http://0.0.0.0:2379"]
     ports:
-      - "8500:8500"
-      - "8600:8600/tcp"
-      - "8600:8600/udp"
-    command: "agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0"
+      - "2379:2379" # Expose etcd client port
+      - "2380:2380" # Expose etcd peer port
     volumes:
-      - /home/borisavz/consul:/consul/data
+      - /Users/filips/etcd:/etcd_data
+    networks:
+      - network
+  
   app:
     build: .
     restart: always
     ports:
       - "8000:8000"
     depends_on:
-      - consul
+      - etcd
     environment:
-      - DB=consul
-      - DBPORT=8500
+      - SERVICEPORT=8000
+      - DBHOST=etcd
+      - DBPORT=2379
+    networks:
+      - network
+
 volumes:
-  consul:
+  etcd:
+
+networks:
+  network:
