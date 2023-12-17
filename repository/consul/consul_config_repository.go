@@ -3,9 +3,10 @@ package consul
 import (
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/c12s/kuiper/model"
 	"github.com/hashicorp/consul/api"
-	"os"
 )
 
 type ConsulConfigRepository struct {
@@ -54,46 +55,46 @@ func (ccr ConsulConfigRepository) GetGroupConfigs(id string, version string, lab
 	return configs, nil
 }
 
-func (ccr ConsulConfigRepository) CreateNewGroup(group model.Group) (model.Response, error) {
-	kv := ccr.cli.KV()
+// func (ccr ConsulConfigRepository) CreateNewGroup(group model.Group) (model.Response, error) {
+// 	kv := ccr.cli.KV()
 
-	id := generateUUID()
-	version := generateUUID()
+// 	id := generateUUID()
+// 	version := generateUUID()
 
-	for _, c := range group.Configs {
-		groupConfigKey := constructGroupConfigKey(id, version, c.Labels, c.Key)
+// 	for _, c := range group.Configs {
+// 		groupConfigKey := constructGroupConfigKey(id, version, c.Labels, c.Key)
 
-		p := &api.KVPair{Key: groupConfigKey, Value: []byte(c.Value)}
+// 		p := &api.KVPair{Key: groupConfigKey, Value: []byte(c.Value)}
 
-		_, err := kv.Put(p, nil)
+// 		_, err := kv.Put(p, nil)
 
-		if err != nil {
-			return model.Response{}, err
-		}
-	}
+// 		if err != nil {
+// 			return model.Response{}, err
+// 		}
+// 	}
 
-	return model.Response{id, version}, nil
-}
+// 	return model.Response{id, version}, nil
+// }
 
-func (ccr ConsulConfigRepository) CreateNewGroupVersion(id string, group model.Group) (model.Response, error) {
-	kv := ccr.cli.KV()
+// func (ccr ConsulConfigRepository) CreateNewGroupVersion(id string, group model.Group) (model.Response, error) {
+// 	kv := ccr.cli.KV()
 
-	version := generateUUID()
+// 	version := generateUUID()
 
-	for _, c := range group.Configs {
-		groupConfigKey := constructGroupConfigKey(id, version, c.Labels, c.Key)
+// 	for _, c := range group.Configs {
+// 		groupConfigKey := constructGroupConfigKey(id, version, c.Labels, c.Key)
 
-		p := &api.KVPair{Key: groupConfigKey, Value: []byte(c.Value)}
+// 		p := &api.KVPair{Key: groupConfigKey, Value: []byte(c.Value)}
 
-		_, err := kv.Put(p, nil)
+// 		_, err := kv.Put(p, nil)
 
-		if err != nil {
-			return model.Response{}, err
-		}
-	}
+// 		if err != nil {
+// 			return model.Response{}, err
+// 		}
+// 	}
 
-	return model.Response{id, version}, nil
-}
+// 	return model.Response{id, version}, nil
+// }
 
 func (ccr ConsulConfigRepository) UpdateGroupVersion(id string, version string, group model.Group) error {
 	return nil
