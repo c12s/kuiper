@@ -280,8 +280,6 @@ This route is used for different list operations for versions. Depends on provid
 | withTo | string | **Not required.** Parameter which represents should toVersion be in list or not
 | sortType | enum | **Not required.** Applicable values: *lexically* , *timestamp*. Parameter which represents a sortType of return value. default: *lexically*
 
-###
-
 When we provide fromVersion and toVersion, database will return all object whose key fall in lexically range. Example if we provide next query params:
 
 - type = group
@@ -304,7 +302,7 @@ example:
 
 but we shouldn't get element v1, **because we didn't provided withFrom = true parameter**.
 
-### Request list group URL example
+### Request list config URL example
 
 *<http://localhost:8000/list?type=config&namespace=spejsnejm&appName=app&id=594012e8-ff3b-4db8-96ef-ee1a8fefc54d&sortType=timestamp>*
 
