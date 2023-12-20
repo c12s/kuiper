@@ -29,6 +29,11 @@ func New(repo repository.ConfigRepostory, logger *zap.Logger) *ConfigService {
 }
 
 func (cs ConfigService) CreateNewVersion(version model.Version) (model.Version, error) {
+
+	if version.Namespace == "" {
+		version.Namespace = "namespace"
+	}
+
 	if version.AppName == "" {
 		version.AppName = "app"
 	}
@@ -81,6 +86,10 @@ func (cs ConfigService) ListVersions(input model.ListRequest) ([]model.Version, 
 	if input.SortType == model.SortTypeTimestamp {
 		sort.Slice(versions, func(i, j int) bool {
 			return versions[i].CreatedAt < versions[j].CreatedAt
+		})
+	} else if input.SortType == model.SortTypeLexically {
+		sort.Slice(versions, func(i, j int) bool {
+			return versions[i].Tag < versions[j].Tag
 		})
 	}
 

@@ -87,7 +87,6 @@ func (controller Controller) CreateVersion(writer http.ResponseWriter, request *
 
 	writer.Header().Add("Content-Type", "application/json")
 	writer.Write(responseBytes)
-	// controller.service.CreateNewGroup(version) ///create different functions to work with model.Version not Group or Config
 }
 
 func (controller Controller) ListVersions(writer http.ResponseWriter, request *http.Request) {
@@ -139,5 +138,4 @@ func (controller Controller) ListVersions(writer http.ResponseWriter, request *h
 
 	writer.Header().Add("Content-Type", "application/json")
 	writer.Write(responseBytes)
-	// controller.service.CreateNewGroup(version) ///create different functions to work with model.Version not Group or Config
 }

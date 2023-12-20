@@ -58,11 +58,11 @@ type Version struct {
 func (v *Version) UnmarshalJSON(bytes []byte) (err error) {
 
 	params := struct {
-		Namespace       string `json:"namespace"`
-		AppName         string `json:"appName"`
-		CreatorUsername string `json:"creatorUsername"`
-		Tag             string `json:"tag"`
-		CreatedAt       int64
+		Namespace       string         `json:"namespace"`
+		AppName         string         `json:"appName"`
+		CreatorUsername string         `json:"creatorUsername"`
+		Tag             string         `json:"tag"`
+		CreatedAt       int64          `json:"createdAt"`
 		ConfigurationID string         `json:"configurationID"`
 		Type            string         `json:"type"`
 		ConfigMap       map[string]any `json:"config"`

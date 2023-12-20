@@ -17,7 +17,7 @@ func buildConfigurationVersionKey(version model.Version) (key string) {
 
 	return fmt.Sprintf(VersionKeyFormat,
 		version.Namespace,
-		"app",
+		version.AppName,
 		version.ConfigWrapper.Type,
 		version.ConfigurationID,
 		version.Tag,
@@ -63,7 +63,7 @@ func buildConfigurationKey(version model.Version) (key string) {
 
 	return fmt.Sprintf(ConfigurationKeyFormat,
 		version.Namespace,
-		"app",
+		version.AppName,
 		version.ConfigWrapper.Type,
 		version.ConfigurationID,
 	)
