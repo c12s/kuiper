@@ -74,6 +74,11 @@ func (cs ConfigService) CreateNewVersion(version model.Version) (model.Version, 
 }
 
 func (cs ConfigService) ListVersions(input model.ListRequest) ([]model.Version, error) {
+
+	if input.Namespace == "" {
+		input.Namespace = "namespace"
+	}
+
 	if input.AppName == "" {
 		input.AppName = "app"
 	}
