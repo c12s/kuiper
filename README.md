@@ -137,6 +137,8 @@ This route is used for different list operations for versions. Depends on provid
 | withTo | string | **Not required.** Parameter which represents should toVersion be in list or not
 | sortType | enum | **Not required.** Applicable values: *lexically* , *timestamp*. Parameter which represents a sortType of return value. default: *lexically*
 
+###
+
 When we provide fromVersion and toVersion, database will return all object whose key fall in lexically range. Example if we provide next query params:
 
 - type = group
@@ -144,6 +146,8 @@ When we provide fromVersion and toVersion, database will return all object whose
 - app = app
 - id = 123-123-123
 - fromVersion = v1
+
+Route URL example: *<http://localhost:8000/list?type=group&namespace=namespace&app=app&id=123-123-123&fromVersion=v1>*
 
 it will return all versions of group with id which have lexically higher version than v1.
 
@@ -153,6 +157,203 @@ example:
 
 - /namespace/app/group/123-123-123/v3
 
-- and all keys whose key have prefix */namespace/app/group/123-123-123/* and whom lexically higher than v1 version tag
+- and all versions whose key have prefix */namespace/app/group/123-123-123/* and whom lexically higher than v1 version tag
 
 but we shouldn't get element v1, **because we didn't provided withFrom = true parameter**.
+
+### Request list group URL example
+
+*<http://localhost:8000/list?type=config&namespace=spejsnejm&appName=app&id=594012e8-ff3b-4db8-96ef-ee1a8fefc54d&sortType=timestamp>*
+
+### Response of list config request
+
+```json
+[
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v10",
+        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
+        "createdAt": 1702748764,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        }
+    },
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v1",
+        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
+        "createdAt": 1702748787,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        }
+    },
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "micko",
+        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
+        "createdAt": 1702748792,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        }
+    },
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "laza",
+        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
+        "createdAt": 1702748806,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+            }
+        },
+        "diff": [
+            {
+                "type": "deletion",
+                "key": "etcdHostUAT",
+                "value": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        ]
+    },
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "pera",
+        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
+        "createdAt": 1702748819,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        },
+        "diff": [
+            {
+                "type": "deletion",
+                "key": "etcdHostGER",
+                "value": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+            }
+        ]
+    }
+]
+```
+
+### Request list group URL example
+
+*<http://localhost:8000/list?type=group&id=7f23cfd3-10a9-42b8-9925-c01849e95909&namespace=spejsnejm&appName=app&sortType=timestamp>*
+
+### Response of list group request
+
+```json
+[
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v1",
+        "configurationID": "7f23cfd3-10a9-42b8-9925-c01849e95909",
+        "createdAt": 1702578908,
+        "type": "group",
+        "config": {
+            "configs": [
+                {
+                    "id": "18c591e6-a9da-4bb6-a350-52a4505d3818",
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany-1",
+                        "etcdHostUATDEV": "exampleCloud.timeseriesEtcd.cluster-uatdev"
+                    },
+                    "diff": null
+                },
+                {
+                    "id": "d6b72ac6-1223-4b7b-842f-1818188e1db4",
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany-12312312"
+                    },
+                    "diff": null
+                },
+                {
+                    "id": "89483fb3-a2ba-4d4b-8684-da1505205f84",
+                    "labels": {
+                        "etcdHostUATNew": "exampleCloud.timeseriesEtcd.cluster-uat-new"
+                    },
+                    "diff": null
+                }
+            ]
+        }
+    },
+    {
+        "namespace": "spejsnejm",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v2",
+        "configurationID": "7f23cfd3-10a9-42b8-9925-c01849e95909",
+        "createdAt": 1702578923,
+        "type": "group",
+        "config": {
+            "configs": [
+                {
+                    "id": "b8e0ab29-fcaf-422b-a663-b059eecf5ab9",
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                        "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+                    },
+                    "diff": null
+                },
+                {
+                    "id": "18c591e6-a9da-4bb6-a350-52a4505d3818",
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany-1",
+                        "etcdHostUATDEV": "exampleCloud.timeseriesEtcd.cluster-uatdev"
+                    },
+                    "diff": null
+                },
+                {
+                    "id": "d6b72ac6-1223-4b7b-842f-1818188e1db4",
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany-12312312"
+                    },
+                    "diff": null
+                },
+                {
+                    "id": "89483fb3-a2ba-4d4b-8684-da1505205f84",
+                    "labels": {
+                        "etcdHostUATNew": "exampleCloud.timeseriesEtcd.cluster-uat-new"
+                    },
+                    "diff": null
+                }
+            ]
+        },
+        "diff": [
+            {
+                "type": "addition",
+                "key": "b8e0ab29-fcaf-422b-a663-b059eecf5ab9",
+                "value": {
+                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                    "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+                }
+            }
+        ]
+    }
+]
+```
