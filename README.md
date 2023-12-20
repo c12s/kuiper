@@ -16,110 +16,253 @@ This route is used for creating versions of configuration or group, depends on p
 
 ### Example of *create config* request
 
+1. In case of creating fully new configuration or group (first version of entity), we should provide all informations except configurationID(unique identifier for config or group).
+
+    Request - *create first version of config*
+
+    ```json
+    {
+        "namespace": "spacename",
+        "creatorUsername": "silja",
+        "configurationID":"",
+        "tag": "v1",
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        }
+    }
+    ```
+
+    Response - *create first version of config*
+
+    ```json
+    {
+        "namespace": "spacename",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v1",
+        "configurationID": "da97b0d6-bf49-4f14-8f36-1c77c23173e1",
+        "createdAt": 1703086398,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        }
+    }
+    ```
+
+2. In case of creating new version of entity whom minimum one version already exists in system **we have to provide configurationID**.
+
+    Request - *create new version of existing configuration*
+
+    ```json
+    {
+        "namespace": "spacename",
+        "creatorUsername": "silja",
+        "configurationID":"da97b0d6-bf49-4f14-8f36-1c77c23173e1",
+        "tag": "v1.1",
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat-new"
+            }
+        }
+    }
+    ```
+
+    Response - *create new version of existing configuration*
+
+    ```json
+    {
+        "namespace": "spacename",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v1.1",
+        "configurationID": "da97b0d6-bf49-4f14-8f36-1c77c23173e1",
+        "createdAt": 1703109407,
+        "type": "config",
+        "config": {
+            "labels": {
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat-new"
+            }
+        },
+        "diff": [
+            {
+                "type": "replace",
+                "key": "etcdHostUAT",
+                "new": "exampleCloud.timeseriesEtcd.cluster-uat-new",
+                "old": "exampleCloud.timeseriesEtcd.cluster-uat"
+            }
+        ]
+    }   
+    ```
+
+    Service on new version creation of existing config with exact id, will get newly before created version, compare new labels with old labels of config, and add appropriate diffs in diff slice. Type of diff can be: **addition**, **deletion** and **replace**.
+
+### Example of *create group* request
+
+1. Same as logic on **create config**, if we creating version of group for first time we shouldn't provide *configurationID*. Also for configs in group, we shouldn't provide id.
+
+    Request - *create first version of group*
+
+   ```json
+    {
+        "namespace": "spacename",
+        "creatorUsername": "silja",
+        "configurationID":"",
+        "tag": "v1",
+        "type": "group",
+        "config": {
+            "configs": [
+                {
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                        "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+                    }
+                },
+                {
+
+                    "labels": {
+                        "natsHostPROD": "exampleCloud.nats-provider.prod"
+                    }
+                }
+            ]
+        }
+    }
+    ```
+
+    Response - *create first version of group*
+
+    ```json
+    {
+        "namespace": "spacename",
+        "creatorUsername": "silja",
+        "appName": "app",
+        "tag": "v1",
+        "configurationID": "8cea77df-6d07-4464-9bad-4ea219bf4247",
+        "createdAt": 1703110310,
+        "type": "group",
+        "config": {
+            "configs": [
+                {
+                    "id": "fbec496b-d96a-4e0c-a3ba-e3fcb22c17ea",
+                    "labels": {
+                        "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
+                        "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+                    },
+                    "diff": null
+                },
+                {
+                    "id": "ddb2facc-58e3-43d4-b882-609ffea0b8ef",
+                    "labels": {
+                        "natsHostPROD": "exampleCloud.nats-provider.prod"
+                    },
+                    "diff": null
+                }
+            ]
+        }
+    }
+    ```
+
+2. If we have to create new version of group **we have to provide configurationID**, also if we have to edit configuration in group, we have to send id of **that group config** and edit labels.
+
+3. If we have to add configuration in group, we have to provide new object to configs array **with labels map and without id field**.
+
+4. If we have to delete configuration from group we have to send full configs list **without element which have to be deleted**.
+
+### Cases 2, 3, 4 example
+
+Request - *add config, delete config, and edit labels of existing config in group*
+
 ```json
 {
     "namespace": "spacename",
     "creatorUsername": "silja",
-    "configurationID":"",
-    "tag": "v1",
-    "type": "config",
+    "configurationID":"8cea77df-6d07-4464-9bad-4ea219bf4247",
+    "tag": "v2",
+    "type": "group",
     "config": {
-        "labels": {
-            "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-            "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
-        }
+        "configs": [
+            {
+                "id": "fbec496b-d96a-4e0c-a3ba-e3fcb22c17ea",
+                "labels": {
+                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+                }
+            },
+            {
+                "labels": {
+                    "newConfigLabel": "newConfigLabelValue"
+                }
+            }
+        ]
     }
-}
+}   
 ```
 
-1. In case of creating fully new configuration or group (first version of entity), we should provide all informations except configurationID(unique identifier for config or group).
+In this request we had ignore config which added on first version creation with id = "ddb2facc-58e3-43d4-b882-609ffea0b8ef" (delete of config in group), added new configuration with one example label and edited configuration in group with id = "fbec496b-d96a-4e0c-a3ba-e3fcb22c17ea" - deleted one of its label.
 
-2. In case of creating new version of entity whom minimum one version already exists in system **we have to provide configurationID**.
-
-### Response - *create config*
+Response - *add config, delete config, and edit labels of existing config in group*
 
 ```json
 {
     "namespace": "spacename",
     "creatorUsername": "silja",
     "appName": "app",
-    "tag": "v1",
-    "configurationID": "da97b0d6-bf49-4f14-8f36-1c77c23173e1",
-    "createdAt": 1703086398,
-    "type": "config",
+    "tag": "v2",
+    "configurationID": "8cea77df-6d07-4464-9bad-4ea219bf4247",
+    "createdAt": 1703110855,
+    "type": "group",
     "config": {
-        "labels": {
-            "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-            "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+        "configs": [
+            {
+                "id": "fbec496b-d96a-4e0c-a3ba-e3fcb22c17ea",
+                "labels": {
+                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+                },
+                "diff": [
+                    {
+                        "type": "deletion",
+                        "key": "etcdHostUAT",
+                        "value": "exampleCloud.timeseriesEtcd.cluster-uat"
+                    }
+                ]
+            },
+            {
+                "id": "b3b2232e-456a-45e8-87c0-1a1836387674",
+                "labels": {
+                    "newConfigLabel": "newConfigLabelValue"
+                },
+                "diff": null
+            }
+        ]
+    },
+    "diff": [
+        {
+            "type": "addition",
+            "key": "b3b2232e-456a-45e8-87c0-1a1836387674",
+            "value": {
+                "newConfigLabel": "newConfigLabelValue"
+            }
+        },
+        {
+            "type": "deletion",
+            "key": "ddb2facc-58e3-43d4-b882-609ffea0b8ef",
+            "value": {
+                "natsHostPROD": "exampleCloud.nats-provider.prod"
+            }
         }
-    }
+    ]
 }
 ```
 
-### Example of *create group* request
-
-```json
-{
-    "namespace": "spacename",
-    "creatorUsername": "silja",
-    "configurationID":"",
-    "tag": "v1",
-    "type": "group",
-    "config": {
-        "configs": [
-            {
-                "labels": {
-                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-                    "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
-                }
-            },
-            {
-                
-                "labels": {
-                    "natsHostPROD": "exampleCloud.nats-provider.prod"
-                }
-            }
-        ]
-    }
-}
-```
-
-1. Same as logic on **create config**, if we creating version of group for first time we shouldn't provide *configurationID*. Also for configs in group, we shouldn't provide id.
-
-2. If we have to create version new version of group **we have to provide configurationID**, also if we have to edit configuration in group, we have to send id and edit labels.
-
-3. If we have to add configuration in group, we have to provide new object **with labels map and without id field**
-
-4. If we have to delete configuration from group we have to send full configs list **without element which have to be deleted**.
-
-### Response - *create group*
-
-```json
-{
-    "namespace": "spacename",
-    "creatorUsername": "silja",
-    "configurationID":"",
-    "tag": "v1",
-    "type": "group",
-    "config": {
-        "configs": [
-            {
-                "id": "18c591e6-a9da-4bb6-a350-52a4505d3818",
-                "labels": {
-                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-                    "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
-                }
-            },
-            {
-                "id": "d6b72ac6-1223-4b7b-842f-1818188e1db4",
-                "labels": {
-                    "natsHostPROD": "exampleCloud.nats-provider.prod"
-                }
-            }
-        ]
-    }
-}
-```
+Diffs in group are organized with: *diff of group* which is in root object and *config diff* which is in each configuration in group. In group diff array will be added items which describes **addition** or **deletion** of configs in group. In group config diff is organized same as only config, there can be **addition**, **deletion** or **replace** of label.
 
 ## GET /list route
 
