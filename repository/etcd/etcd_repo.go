@@ -51,10 +51,7 @@ func (etcd *ETCDRepo) ListVersions(input model.ListRequest) (results []model.Ver
 
 	searchPrefix := prefix
 
-	// log.Sugar().Infof("searchPrefix %s, fromPref %s, toPref %s",
-	// 	searchPrefix, from, to,
-	// )
-	if from != "" /*&& to != ""*/ {
+	if from != "" {
 		searchPrefix = from
 	}
 
@@ -148,8 +145,6 @@ func (etcd *ETCDRepo) GetPreviousVersions(version model.Version) ([]model.Versio
 
 	return result, nil
 }
-
-//timeline with one id and version range ...
 
 func buildSearchOptions(listRequest model.ListRequest, prefix string, fromPrefix, toPrefix *string) (options []clientv3.OpOption) {
 	options = make([]clientv3.OpOption, 0)
