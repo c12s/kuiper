@@ -206,20 +206,8 @@ func copySelector(selector *magnetarapi.Selector) magnetarapi.Selector {
 func GetAuthInterceptor(apollo apolloapi.AuthServiceClient) func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
-		if ok && len(md.Get("authn-token")) > 0 {
-			authnToken := md.Get("authn-token")[0]
-			log.Println(authnToken)
-			verifyResp, err := apollo.VerifyToken(ctx, &apolloapi.Token{Token: authnToken})
-			if err != nil {
-				log.Println(err)
-				// Calls the handler
-				return handler(ctx, req)
-			}
-			if !verifyResp.Token.Verified {
-				log.Println("token invalid")
-				return handler(ctx, req)
-			}
-			ctx = context.WithValue(ctx, "authz-token", verifyResp.Token.Jwt)
+		if ok && len(md.Get("authz-token")) > 0 {
+			ctx = context.WithValue(ctx, "authz-token", md.Get("authz-token")[0])
 		}
 		// Calls the handler
 		return handler(ctx, req)
