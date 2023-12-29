@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/c12s/kuiper/internal/services"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	apolloapi "iam-service/proto1"
 	"log"
+
+	"github.com/c12s/kuiper/internal/services"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/c12s/kuiper/pkg/api"
 	"github.com/c12s/kuiper/pkg/client/agent_queue"
@@ -48,7 +51,7 @@ func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evalu
 
 func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfigGroupReq) (*api.PutConfigGroupResp, error) {
 	if !k.authorizer.Authorize(ctx, "config.put", "org", req.Group.OrgId) {
-		return nil, errors.New("unauthorized")
+		return nil, status.Error(codes.PermissionDenied, "unauthorized")
 	}
 	key := groupId(req.Group)
 	_, ok := k.configs[key]
@@ -97,7 +100,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 	log.Printf("GROUP IF %s\n", groupId)
 	// authorize - da li sub sme da pristupi konfiguraciji
 	if !k.authorizer.Authorize(ctx, "config.get", "config", groupId) {
-		return nil, errors.New("unauthorized - config.get")
+		return nil, status.Error(codes.PermissionDenied, "unauthorized - config.get")
 	}
 	// check if config exists
 	group, ok := k.configs[groupId]
@@ -106,7 +109,7 @@ func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyCo
 	}
 	// authorize - da li sme da menja namespace
 	if !k.authorizer.Authorize(ctx, "namespace.putconfig", "namespace", req.Namespace) {
-		return nil, errors.New("unauthorized - namespace.put")
+		return nil, status.Error(codes.PermissionDenied, "unauthorized - namespace.putconfig")
 	}
 	// todo: check if namespace exists
 	if !slices.Contains(k.nsConfigs[req.Namespace], groupId) {
