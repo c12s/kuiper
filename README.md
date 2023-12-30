@@ -395,7 +395,7 @@ All list operations have sorting of versions to achieve timeseries structure(sor
 
 ### Request list group URL example
 
-*<http://localhost:8000/list?type=group&id=7f23cfd3-10a9-42b8-9925-c01849e95909&namespace=spejsnejm&appName=app&sortType=timestamp>*
+*<http://localhost:8000/list?type=group&id=7f23cfd3-10a9-42b8-9925-c01849e95909&namespace=spejsnejm&appName=app>*
 
 ### Response of list group request
 
