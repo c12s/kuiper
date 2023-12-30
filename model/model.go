@@ -48,9 +48,10 @@ type Version struct {
 	Namespace       string `json:"namespace"`
 	CreatorUsername string `json:"creatorUsername"`
 	AppName         string `json:"appName"`
-	Tag             string `json:"tag"`
+	VersionTag      string `json:"versionTag"`
 	ConfigurationID string `json:"configurationID"`
 	CreatedAt       int64  `json:"createdAt"`
+	Weight          int64  `json:"weight"`
 	ConfigWrapper
 	Diff Diffs `json:"diff,omitempty"`
 }
@@ -61,8 +62,9 @@ func (v *Version) UnmarshalJSON(bytes []byte) (err error) {
 		Namespace       string         `json:"namespace"`
 		AppName         string         `json:"appName"`
 		CreatorUsername string         `json:"creatorUsername"`
-		Tag             string         `json:"tag"`
+		VersionTag      string         `json:"versionTag"`
 		CreatedAt       int64          `json:"createdAt"`
+		Weight          int64          `json:"weight"`
 		ConfigurationID string         `json:"configurationID"`
 		Type            string         `json:"type"`
 		ConfigMap       map[string]any `json:"config"`
@@ -78,8 +80,9 @@ func (v *Version) UnmarshalJSON(bytes []byte) (err error) {
 	v.Namespace = params.Namespace
 	v.AppName = params.AppName
 	v.CreatorUsername = params.CreatorUsername
-	v.Tag = params.Tag
+	v.VersionTag = params.VersionTag
 	v.CreatedAt = params.CreatedAt
+	v.Weight = params.Weight
 	v.Type = ConfigType(params.Type)
 	v.ConfigurationID = params.ConfigurationID
 	v.Diff = params.Diff

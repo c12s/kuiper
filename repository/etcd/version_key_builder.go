@@ -20,7 +20,7 @@ func buildConfigurationVersionKey(version model.Version) (key string) {
 		version.AppName,
 		version.ConfigWrapper.Type,
 		version.ConfigurationID,
-		version.Tag,
+		version.VersionTag,
 	)
 }
 
