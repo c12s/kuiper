@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/c12s/kuiper/model"
+	"github.com/emirpasic/gods/lists/arraylist"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
@@ -41,7 +42,7 @@ func New(log *zap.Logger) (repo *ETCDRepo, err error) {
 	return
 }
 
-func (etcd *ETCDRepo) ListVersions(input model.ListRequest) (results []model.Version, err error) {
+func (etcd *ETCDRepo) ListVersions(input model.ListRequest) (results *arraylist.List, err error) {
 
 	log := etcd.Logger.Named("[Repo:ListVersions]").With(zap.Any("input", input))
 	log.Info("started")
@@ -62,7 +63,7 @@ func (etcd *ETCDRepo) ListVersions(input model.ListRequest) (results []model.Ver
 		)
 	}
 
-	results = make([]model.Version, 0)
+	results = arraylist.New()
 	for _, el := range res.Kvs {
 		var result model.Version
 		err = json.Unmarshal(el.Value, &result)
@@ -72,7 +73,7 @@ func (etcd *ETCDRepo) ListVersions(input model.ListRequest) (results []model.Ver
 			)
 		}
 
-		results = append(results, result)
+		results.Add(result)
 	}
 
 	log.Info("finished")
@@ -125,7 +126,7 @@ func (etcd *ETCDRepo) CreateNewVersion(version model.Version) (saved model.Versi
 func (etcd *ETCDRepo) GetPreviousVersions(version model.Version) ([]model.Version, error) {
 	key := buildConfigurationKey(version)
 
-	res, err := etcd.Client.Get(context.Background(), key, clientv3.WithLastKey()...)
+	res, err := etcd.Client.Get(context.Background(), key, clientv3.WithPrefix())
 	if err != nil {
 		etcd.Logger.Info("error in getting prev version")
 		return nil, err

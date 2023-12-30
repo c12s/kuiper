@@ -2,8 +2,9 @@
 
 This service was realized and organized in two endpoints.
 
-- /create/{type} - endpoint for creation of versions of config or group
-- /list - endpoint to list versions of exactly entity (config or group) with id and other parameters.
+- /create - endpoint for creation of versions of config or group
+- /list - endpoint to list (timeseries representation) versions of exactly entity (config or group) by id and other parameters.
+- /diff/list - endpoint to list (timeseries representation) diffs (of versions) of exactly entity (config or group) by id and other parameters.
 
 ## POST /create route
 
@@ -25,7 +26,7 @@ This route is used for creating versions of configuration or group, depends on p
         "namespace": "spacename",
         "creatorUsername": "silja",
         "configurationID":"",
-        "tag": "v1",
+        "versionTag": "v1",
         "type": "config",
         "config": {
             "labels": {
@@ -43,9 +44,10 @@ This route is used for creating versions of configuration or group, depends on p
         "namespace": "spacename",
         "creatorUsername": "silja",
         "appName": "app",
-        "tag": "v1",
+        "versionTag": "v1",
         "configurationID": "da97b0d6-bf49-4f14-8f36-1c77c23173e1",
         "createdAt": 1703086398,
+        "weight": 1,
         "type": "config",
         "config": {
             "labels": {
@@ -56,7 +58,7 @@ This route is used for creating versions of configuration or group, depends on p
     }
     ```
 
-2. In case of creating new version of entity whom minimum one version already exists in system **we have to provide configurationID**.
+2. In case of creating new version of entity whom minimum one version already exists in system **we have to provide configurationID and new value of versionTag**.
 
     Request - *create new version of existing configuration*
 
@@ -65,7 +67,7 @@ This route is used for creating versions of configuration or group, depends on p
         "namespace": "spacename",
         "creatorUsername": "silja",
         "configurationID":"da97b0d6-bf49-4f14-8f36-1c77c23173e1",
-        "tag": "v1.1",
+        "versionTag": "v1.1",
         "type": "config",
         "config": {
             "labels": {
@@ -83,9 +85,10 @@ This route is used for creating versions of configuration or group, depends on p
         "namespace": "spacename",
         "creatorUsername": "silja",
         "appName": "app",
-        "tag": "v1.1",
+        "versionTag": "v1.1",
         "configurationID": "da97b0d6-bf49-4f14-8f36-1c77c23173e1",
         "createdAt": 1703109407,
+        "weight": 2,
         "type": "config",
         "config": {
             "labels": {
@@ -117,7 +120,7 @@ This route is used for creating versions of configuration or group, depends on p
         "namespace": "spacename",
         "creatorUsername": "silja",
         "configurationID":"",
-        "tag": "v1",
+        "versionTag": "v1",
         "type": "group",
         "config": {
             "configs": [
@@ -145,9 +148,10 @@ This route is used for creating versions of configuration or group, depends on p
         "namespace": "spacename",
         "creatorUsername": "silja",
         "appName": "app",
-        "tag": "v1",
+        "versionTag": "v1",
         "configurationID": "8cea77df-6d07-4464-9bad-4ea219bf4247",
         "createdAt": 1703110310,
+        "weight": 1,
         "type": "group",
         "config": {
             "configs": [
@@ -186,7 +190,7 @@ Request - *add config, delete config, and edit labels of existing config in grou
     "namespace": "spacename",
     "creatorUsername": "silja",
     "configurationID":"8cea77df-6d07-4464-9bad-4ea219bf4247",
-    "tag": "v2",
+    "versionTag": "v2",
     "type": "group",
     "config": {
         "configs": [
@@ -215,9 +219,10 @@ Response - *add config, delete config, and edit labels of existing config in gro
     "namespace": "spacename",
     "creatorUsername": "silja",
     "appName": "app",
-    "tag": "v2",
+    "versionTag": "v2",
     "configurationID": "8cea77df-6d07-4464-9bad-4ea219bf4247",
     "createdAt": 1703110855,
+    "weight": 2,
     "type": "group",
     "config": {
         "configs": [
@@ -278,7 +283,6 @@ This route is used for different list operations for versions. Depends on provid
 | withFrom | string | **Not required.** Parameter which represents should fromVersion be in list or not
 | toVersion | string | **Not required.** Parameter which represents version tag from which will listing stop
 | withTo | string | **Not required.** Parameter which represents should toVersion be in list or not
-| sortType | enum | **Not required.** Applicable values: *lexically* , *timestamp*. Parameter which represents a sortType of return value. default: *lexically*
 
 When we provide fromVersion and toVersion, database will return all object whose key fall in lexically range. Example if we provide next query params:
 
@@ -302,98 +306,87 @@ example:
 
 but we shouldn't get element v1, **because we didn't provided withFrom = true parameter**.
 
+All list operations have sorting of versions to achieve timeseries structure(sort based on weight parameter which is increment integer of each version with starting position 1).
+
 ### Request list config URL example
 
-*<http://localhost:8000/list?type=config&namespace=spejsnejm&appName=app&id=594012e8-ff3b-4db8-96ef-ee1a8fefc54d&sortType=timestamp>*
+*<http://localhost:8000/list?type=config&namespace=spejsnejm&appName=app&id=594012e8-ff3b-4db8-96ef-ee1a8fefc54d>*
 
 ### Response of list config request
 
 ```json
 [
     {
-        "namespace": "spejsnejm",
+        "namespace": "spacename",
         "creatorUsername": "silja",
         "appName": "app",
-        "tag": "v10",
-        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
-        "createdAt": 1702748764,
+        "versionTag": "v2",
+        "configurationID": "2fdd969c-b821-4523-9c9c-874f5b3c77c4",
+        "createdAt": 1703933385,
+        "weight": 1,
         "type": "config",
         "config": {
             "labels": {
-                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+                "etcdHostFR": "exampleCloud.timeseriesEtcd.cluster-france",
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-germany1123"
             }
         }
     },
     {
-        "namespace": "spejsnejm",
+        "namespace": "spacename",
         "creatorUsername": "silja",
         "appName": "app",
-        "tag": "v1",
-        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
-        "createdAt": 1702748787,
+        "versionTag": "v3.beta",
+        "configurationID": "2fdd969c-b821-4523-9c9c-874f5b3c77c4",
+        "createdAt": 1703933432,
+        "weight": 2,
         "type": "config",
         "config": {
             "labels": {
-                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
-            }
-        }
-    },
-    {
-        "namespace": "spejsnejm",
-        "creatorUsername": "silja",
-        "appName": "app",
-        "tag": "micko",
-        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
-        "createdAt": 1702748792,
-        "type": "config",
-        "config": {
-            "labels": {
-                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany",
-                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
-            }
-        }
-    },
-    {
-        "namespace": "spejsnejm",
-        "creatorUsername": "silja",
-        "appName": "app",
-        "tag": "laza",
-        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
-        "createdAt": 1702748806,
-        "type": "config",
-        "config": {
-            "labels": {
-                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+                "etcdHostFR": "exampleCloud.timeseriesEtcd.cluster-france-beta",
+                "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-germany-beta"
             }
         },
         "diff": [
             {
-                "type": "deletion",
-                "key": "etcdHostUAT",
-                "value": "exampleCloud.timeseriesEtcd.cluster-uat"
+                "type": "replace",
+                "key": "etcdHostFR",
+                "new": "exampleCloud.timeseriesEtcd.cluster-france-beta",
+                "old": "exampleCloud.timeseriesEtcd.cluster-france"
+            },
+            {
+                "type": "replace",
+                "key": "etcdHostGER",
+                "new": "exampleCloud.timeseriesEtcd.cluster-germany-beta",
+                "old": "exampleCloud.timeseriesEtcd.cluster-germany1123"
             }
         ]
     },
     {
-        "namespace": "spejsnejm",
+        "namespace": "spacename",
         "creatorUsername": "silja",
         "appName": "app",
-        "tag": "pera",
-        "configurationID": "594012e8-ff3b-4db8-96ef-ee1a8fefc54d",
-        "createdAt": 1702748819,
+        "versionTag": "v3",
+        "configurationID": "2fdd969c-b821-4523-9c9c-874f5b3c77c4",
+        "createdAt": 1703933461,
+        "weight": 3,
         "type": "config",
         "config": {
             "labels": {
-                "etcdHostUAT": "exampleCloud.timeseriesEtcd.cluster-uat"
+                "etcdHostFR": "exampleCloud.timeseriesEtcd.cluster-france-v3"
             }
         },
         "diff": [
             {
+                "type": "replace",
+                "key": "etcdHostFR",
+                "new": "exampleCloud.timeseriesEtcd.cluster-france-v3",
+                "old": "exampleCloud.timeseriesEtcd.cluster-france-beta"
+            },
+            {
                 "type": "deletion",
                 "key": "etcdHostGER",
-                "value": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+                "value": "exampleCloud.timeseriesEtcd.cluster-germany-beta"
             }
         ]
     }
@@ -402,7 +395,7 @@ but we shouldn't get element v1, **because we didn't provided withFrom = true pa
 
 ### Request list group URL example
 
-*<http://localhost:8000/list?type=group&id=7f23cfd3-10a9-42b8-9925-c01849e95909&namespace=spejsnejm&appName=app&sortType=timestamp>*
+*<http://localhost:8000/list?type=group&id=7f23cfd3-10a9-42b8-9925-c01849e95909&namespace=spejsnejm&appName=app>*
 
 ### Response of list group request
 
@@ -415,6 +408,7 @@ but we shouldn't get element v1, **because we didn't provided withFrom = true pa
         "tag": "v1",
         "configurationID": "7f23cfd3-10a9-42b8-9925-c01849e95909",
         "createdAt": 1702578908,
+        "weight": 1,
         "type": "group",
         "config": {
             "configs": [
@@ -450,6 +444,7 @@ but we shouldn't get element v1, **because we didn't provided withFrom = true pa
         "tag": "v2",
         "configurationID": "7f23cfd3-10a9-42b8-9925-c01849e95909",
         "createdAt": 1702578923,
+        "weight": 2,
         "type": "group",
         "config": {
             "configs": [
@@ -498,3 +493,126 @@ but we shouldn't get element v1, **because we didn't provided withFrom = true pa
     }
 ]
 ```
+
+## GET /diff/list route
+
+This route is used for different list operations for diffs of versions. Depends on provided type in query parameters, it can be list diffs (of versions) of configuration or group (same as **/list** route, but returns timeseries representation list with only diffs and versionTag). Other parameters are concerned with needs of list operation (search).
+
+### Request list config versions diffs URL example
+
+*<http://localhost:8000/list?type=config&namespace=spejsnejm&appName=app&id=594012e8-ff3b-4db8-96ef-ee1a8fefc54d>*
+
+### Response list config versions diffs example
+
+```json
+[
+    {
+        "versionTag": "v2",
+        "diffs": null
+    },
+    {
+        "versionTag": "v3.beta",
+        "diffs": [
+            {
+                "type": "replace",
+                "key": "etcdHostFR",
+                "new": "exampleCloud.timeseriesEtcd.cluster-france-beta",
+                "old": "exampleCloud.timeseriesEtcd.cluster-france"
+            },
+            {
+                "type": "replace",
+                "key": "etcdHostGER",
+                "new": "exampleCloud.timeseriesEtcd.cluster-germany-beta",
+                "old": "exampleCloud.timeseriesEtcd.cluster-germany1123"
+            }
+        ]
+    },
+    {
+        "versionTag": "v3",
+        "diffs": [
+            {
+                "type": "replace",
+                "key": "etcdHostFR",
+                "new": "exampleCloud.timeseriesEtcd.cluster-france-v3",
+                "old": "exampleCloud.timeseriesEtcd.cluster-france-beta"
+            },
+            {
+                "type": "deletion",
+                "key": "etcdHostGER",
+                "value": "exampleCloud.timeseriesEtcd.cluster-germany-beta"
+            }
+        ]
+    }
+]
+```
+
+(v2 diffs fields are empty because it is first version of config)
+
+Each element of this list of timeseries configuration diffs contains versionTag field and diffs field (differences between this version and previous version).
+
+### Request list group versions diffs URL example
+
+*<http://localhost:8000/diff/list?type=group&id=991a2b2f-eae3-42b4-aafd-89e2be616f07&namespace=spacename&appName=app>*
+
+### Response list group versions diffs example
+
+```json
+[
+    {
+        "versionTag": "v1",
+        "groupConfigsDiff": [],
+        "groupDiffs": null
+    },
+    {
+        "versionTag": "v3",
+        "groupConfigsDiff": [
+            {
+                "configID": "9d196653-d93a-43f8-aa71-f0daeef57cd2",
+                "diffs": [
+                    {
+                        "type": "addition",
+                        "key": "configLabelNew",
+                        "value": "configLabelNew"
+                    },
+                    {
+                        "type": "replace",
+                        "key": "newConfigLabel",
+                        "new": "newConfigLabelValue123",
+                        "old": "newConfigLabelValue"
+                    }
+                ]
+            }
+        ],
+        "groupDiffs": [
+            {
+                "type": "addition",
+                "key": "29b4efc6-e14a-44fc-bbe7-b866a92e2e2b",
+                "value": {
+                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+                }
+            }
+        ]
+    },
+    {
+        "versionTag": "v4.1",
+        "groupConfigsDiff": [],
+        "groupDiffs": [
+            {
+                "type": "deletion",
+                "key": "29b4efc6-e14a-44fc-bbe7-b866a92e2e2b",
+                "value": {
+                    "etcdHostGER": "exampleCloud.timeseriesEtcd.cluster-dev-germany"
+                }
+            }
+        ]
+    }
+]
+```
+
+(v1 diffs fields are empty because it is first version of group)
+
+Each element of this list of timeseries group diffs contains versionTag, groupConfigsDiff and groupDiffs field.
+
+**groupConfigsDiff** - diffs for each configuration in group(difference between those configurations in group with previous version of this configurations in group)
+
+**groupDiffs** - diffs for each configuration in group(example: addition or deletion of configuration in group)
