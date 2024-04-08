@@ -12,12 +12,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/c12s/kuiper/pkg/api"
 	"github.com/c12s/kuiper/pkg/client/agent_queue"
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
-	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
 	"golang.org/x/exp/slices"
 )

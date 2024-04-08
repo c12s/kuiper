@@ -6,6 +6,7 @@ const (
 	ErrTypeMarshalSS ErrorType = iota
 	ErrTypeDb
 	ErrTypeNotFound
+	ErrTypeVersionExists
 )
 
 type Error struct {

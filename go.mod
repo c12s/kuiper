@@ -8,8 +8,8 @@ require (
 	github.com/c12s/magnetar v1.0.0
 	github.com/c12s/oort v1.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
-	github.com/golang/protobuf v1.5.4
 	github.com/nats-io/nats.go v1.31.0
+	go.etcd.io/etcd/client/v3 v3.5.13
 	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.33.0
@@ -17,23 +17,15 @@ require (
 )
 
 require (
-	github.com/coreos/etcd v3.3.27+incompatible // indirect
-	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
-	github.com/coreos/pkg v0.0.0-20240122114842-bbd7aa9bf6fb // indirect
-	github.com/google/uuid v1.3.1 // indirect
-)
-
-require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/nats-io/nkeys v0.4.5 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	go.etcd.io/etcd v3.3.27+incompatible
 	go.etcd.io/etcd/api/v3 v3.5.13 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.13 // indirect
-	go.etcd.io/etcd/client/v3 v3.5.13 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
