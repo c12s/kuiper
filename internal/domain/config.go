@@ -84,8 +84,46 @@ func (ps NamedParamSet) ParamSet() map[string]string {
 }
 
 func (ps NamedParamSet) Diff(cmp NamedParamSet) []Diff {
-	// todo: ubaciti kod koji racuna diff
-	return nil
+	diffs := make([]Diff, 0)
+
+	labelsNew := ps.params
+	labelsLatest := cmp.params
+
+	for key, labelN := range labelsNew {
+		labelL, ok := labelsLatest[key]
+
+		var newDiff Diff
+		if !ok {
+			newDiff = Addition{
+				Value: labelN,
+				Key:   key,
+			}
+
+			diffs = append(diffs, newDiff)
+		} else if ok && labelN != labelL {
+			newDiff = Replace{
+				Key: key,
+				New: labelN,
+				Old: labelL,
+			}
+
+			diffs = append(diffs, newDiff)
+		}
+
+	}
+
+	for key, labelL := range labelsLatest {
+		if _, ok := labelsNew[key]; !ok {
+			delDiff := Deletion{
+				Key:   key,
+				Value: labelL,
+			}
+
+			diffs = append(diffs, delDiff)
+		}
+	}
+
+	return diffs
 }
 
 type StandaloneConfig struct {
@@ -110,6 +148,10 @@ func (c *StandaloneConfig) Name() string {
 
 func (c *StandaloneConfig) ParamSet() map[string]string {
 	return c.paramSet.params
+}
+
+func (c *StandaloneConfig) Diff(cmp *StandaloneConfig) []Diff {
+	return c.paramSet.Diff(cmp.paramSet)
 }
 
 type ConfigGroup struct {
@@ -138,13 +180,50 @@ func (c *ConfigGroup) ParamSets() []NamedParamSet {
 	return c.paramSets
 }
 
-func (c *ConfigGroup) ParamSet(name string) (map[string]string, *Error) {
+func (c *ConfigGroup) ParamSet(name string) (NamedParamSet, *Error) {
 	for _, ps := range c.paramSets {
 		if ps.name == name {
-			return ps.params, nil
+			return ps, nil
 		}
 	}
-	return nil, NewError(ErrTypeNotFound, fmt.Sprintf("param set (name: %s) not found", name))
+	return NamedParamSet{}, NewError(ErrTypeNotFound, fmt.Sprintf("param set (name: %s) not found", name))
+}
+
+func (c *ConfigGroup) Diff(cmp *ConfigGroup) map[string][]Diff {
+	diffs := make(map[string][]Diff)
+
+	groupNew := c
+	groupLatest := cmp
+	for _, newParamSet := range groupNew.paramSets {
+		latestParamSet, err := groupLatest.ParamSet(newParamSet.name)
+		if err != nil {
+			//addition of config in group
+			for key, value := range newParamSet.params {
+				newDiff := Addition{
+					Key:   key,
+					Value: value,
+				}
+				diffs[newParamSet.name] = append(diffs[newParamSet.name], newDiff)
+			}
+		} else {
+			diffs[newParamSet.name] = newParamSet.Diff(latestParamSet)
+		}
+	}
+	for _, latestParamSet := range groupLatest.paramSets {
+		_, err := groupNew.ParamSet(latestParamSet.name)
+		if err != nil {
+			//deletion of config in group
+			for key, value := range latestParamSet.params {
+				newDiff := Deletion{
+					Key:   key,
+					Value: value,
+				}
+				diffs[latestParamSet.name] = append(diffs[latestParamSet.name], newDiff)
+			}
+		}
+	}
+
+	return diffs
 }
 
 type StandaloneConfigStore interface {
