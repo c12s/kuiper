@@ -48,7 +48,7 @@ func main() {
 	paramSet := domain.NewParamSet("db_config", map[string]string{"port": "9999", "pass": "admin"})
 	config := domain.NewStandaloneConfig("c12s", "v1.0.0", time.Now().Unix(), *paramSet)
 
-	paramSet2 := domain.NewParamSet("db_config2", map[string]string{"port": "1111"})
+	paramSet2 := domain.NewParamSet("db_config", map[string]string{"port": "1111"})
 	config2 := domain.NewStandaloneConfig("c12s", "v1.0.0", time.Now().Unix(), *paramSet2)
 
 	log.Println(config2.Diff(config))

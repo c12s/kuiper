@@ -36,7 +36,7 @@ func (dt *DiffType) IsValid() bool {
 
 type Addition struct {
 	Key   string
-	Value any
+	Value string
 }
 
 func (Addition) Type() DiffType {
@@ -45,8 +45,9 @@ func (Addition) Type() DiffType {
 
 func (a Addition) String() string {
 	str := struct {
-		Type, Key string
-		Value     any
+		Type  string `json:"type"`
+		Key   string `json:"key"`
+		Value string `json:"value"`
 	}{
 		Type:  string(a.Type()),
 		Key:   a.Key,
@@ -72,8 +73,10 @@ func (Replace) Type() DiffType {
 
 func (r Replace) String() string {
 	str := struct {
-		Type, Key          string
-		OldValue, NewValue string
+		Type     string `json:"type"`
+		Key      string `json:"key"`
+		OldValue string `json:"old_value"`
+		NewValue string `json:"new_value"`
 	}{
 		Type:     string(r.Type()),
 		Key:      r.Key,
@@ -90,7 +93,7 @@ func (r Replace) String() string {
 
 type Deletion struct {
 	Key   string
-	Value any
+	Value string
 }
 
 func (Deletion) Type() DiffType {
@@ -99,8 +102,9 @@ func (Deletion) Type() DiffType {
 
 func (d Deletion) String() string {
 	str := struct {
-		Type, Key string
-		Value     any
+		Type  string `json:"type"`
+		Key   string `json:"key"`
+		Value string `json:"value"`
 	}{
 		Type:  string(d.Type()),
 		Key:   d.Key,
