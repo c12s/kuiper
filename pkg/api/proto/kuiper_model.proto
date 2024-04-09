@@ -68,14 +68,19 @@ message Diffs {
   repeated Diff diffs = 1;
 }
 
-message ApplyStandaloneConfigCommand {
-  StandaloneConfig config = 1;
+message ApplyConfigCommand {
+  bytes config = 1;
   string taskId = 2;
   string namespace = 3;
+  string type = 4;
 }
 
-message ApplyConfigGroupCommand {
-  ConfigGroup group = 1;
-  string taskId = 2;
-  string namespace = 3;
+enum TaskStatus {
+  Placed = 0;
+  Failed = 1;
+}
+
+message ApplyConfigReply {
+  ApplyConfigCommand cmd = 1;
+  TaskStatus status = 2;
 }

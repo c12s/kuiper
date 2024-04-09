@@ -1,4 +1,3 @@
-# TODO: restore path name kuiper-new -> kuiper
 # Start from the latest golang base image
 FROM golang:latest as builder
 
@@ -6,7 +5,7 @@ FROM golang:latest as builder
 WORKDIR /app
 
 # Copy go mod and sum files
-COPY ./kuiper-new/go.mod ./kuiper-new/go.sum ./
+COPY ./kuiper/go.mod ./kuiper/go.sum ./
 
 # Copy the local dependency
 COPY ./magnetar ../magnetar
@@ -17,7 +16,7 @@ COPY ./iam-service ../iam-service
 RUN go mod download
 
 # Copy everything from the current directory to the Working Directory inside the container
-COPY ./kuiper-new/ .
+COPY ./kuiper/ .
 
 # Build the Go app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server

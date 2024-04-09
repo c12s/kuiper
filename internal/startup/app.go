@@ -1,12 +1,16 @@
 package startup
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net"
+	"net/http"
+	"time"
 
 	"github.com/c12s/kuiper/internal/services"
 	"github.com/c12s/kuiper/internal/store"
+	"github.com/gorilla/mux"
 
 	"github.com/c12s/kuiper/internal/configs"
 	"github.com/c12s/kuiper/internal/servers"
@@ -18,6 +22,7 @@ import (
 type app struct {
 	config            *configs.Config
 	grpcServer        *grpc.Server
+	taskWebhooks      *http.Server
 	shutdownProcesses []func()
 }
 
@@ -67,7 +72,7 @@ func (a *app) init() {
 	configGroupStore := store.NewConfigGroupEtcdStore(etcdConn)
 	placementStore := store.NewPlacementEtcdStore(etcdConn)
 
-	placementService := services.NewPlacementStore(magnetarClient, agentQueueClient, administratorClient, authzService, placementStore)
+	placementService := services.NewPlacementStore(magnetarClient, agentQueueClient, administratorClient, authzService, placementStore, a.config.WebhookUrl())
 	standaloneConfigService := services.NewStandaloneConfigService(evaluatorClient, administratorClient, authzService, standaloneConfigStore, placementService)
 	configGroupService := services.NewConfigGroupService(evaluatorClient, administratorClient, authzService, configGroupStore, placementService)
 
@@ -76,6 +81,15 @@ func (a *app) init() {
 	api.RegisterKuiperServer(s, kuiperGrpcServer)
 	reflection.Register(s)
 	a.grpcServer = s
+
+	webhooks := servers.NewTaskWebshooks(placementService)
+	router := mux.NewRouter()
+	router.HandleFunc("/standalone", webhooks.UpdateStandaloneConfigTaskStatus).Methods("POST")
+	router.HandleFunc("/groups", webhooks.UpdateConfigGroupTaskStatus).Methods("POST")
+	a.taskWebhooks = &http.Server{
+		Addr:    a.config.WebhooksAddress(),
+		Handler: router,
+	}
 }
 
 func (a *app) startGrpcServer() error {
@@ -92,12 +106,24 @@ func (a *app) startGrpcServer() error {
 	return nil
 }
 
+func (a *app) startWebhooks() {
+	err := a.taskWebhooks.ListenAndServe()
+	log.Println(err)
+}
+
 func (a *app) Start() error {
 	a.init()
+	go a.startWebhooks()
 	return a.startGrpcServer()
 }
 
 func (a *app) GracefulStop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err := a.taskWebhooks.Shutdown(ctx)
+	if err != nil {
+		log.Println(err)
+	}
 	a.grpcServer.GracefulStop()
 	for _, shudownProcess := range a.shutdownProcesses {
 		shudownProcess()

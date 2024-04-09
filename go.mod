@@ -9,6 +9,7 @@ require (
 	github.com/c12s/oort v1.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/mux v1.8.1
 	github.com/nats-io/nats.go v1.31.0
 	go.etcd.io/etcd/client/v3 v3.5.13
 	google.golang.org/grpc v1.63.2

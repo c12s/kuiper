@@ -133,10 +133,12 @@ func (s *KuiperGrpcServer) ListPlacementTaskByStandaloneConfig(ctx context.Conte
 func (s *KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.NewConfigGroup) (*api.ConfigGroup, error) {
 	paramSets := mapProtoParamSets(req.ParamSets)
 	config := domain.NewConfigGroup(domain.Org(req.Organization), req.Name, req.Version, paramSets)
+
 	config, err := s.groups.Put(ctx, config)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
+
 	resp := &api.ConfigGroup{
 		Organization: string(config.Org()),
 		Name:         config.Name(),

@@ -20,6 +20,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type TaskStatus int32
+
+const (
+	TaskStatus_Placed TaskStatus = 0
+	TaskStatus_Failed TaskStatus = 1
+)
+
+// Enum value maps for TaskStatus.
+var (
+	TaskStatus_name = map[int32]string{
+		0: "Placed",
+		1: "Failed",
+	}
+	TaskStatus_value = map[string]int32{
+		"Placed": 0,
+		"Failed": 1,
+	}
+)
+
+func (x TaskStatus) Enum() *TaskStatus {
+	p := new(TaskStatus)
+	*p = x
+	return p
+}
+
+func (x TaskStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TaskStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_kuiper_model_proto_enumTypes[0].Descriptor()
+}
+
+func (TaskStatus) Type() protoreflect.EnumType {
+	return &file_kuiper_model_proto_enumTypes[0]
+}
+
+func (x TaskStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TaskStatus.Descriptor instead.
+func (TaskStatus) EnumDescriptor() ([]byte, []int) {
+	return file_kuiper_model_proto_rawDescGZIP(), []int{0}
+}
+
 type Param struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -682,18 +728,19 @@ func (x *Diffs) GetDiffs() []*Diff {
 	return nil
 }
 
-type ApplyStandaloneConfigCommand struct {
+type ApplyConfigCommand struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Config    *StandaloneConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	TaskId    string            `protobuf:"bytes,2,opt,name=taskId,proto3" json:"taskId,omitempty"`
-	Namespace string            `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Config    []byte `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	TaskId    string `protobuf:"bytes,2,opt,name=taskId,proto3" json:"taskId,omitempty"`
+	Namespace string `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Type      string `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
 }
 
-func (x *ApplyStandaloneConfigCommand) Reset() {
-	*x = ApplyStandaloneConfigCommand{}
+func (x *ApplyConfigCommand) Reset() {
+	*x = ApplyConfigCommand{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_kuiper_model_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -701,13 +748,13 @@ func (x *ApplyStandaloneConfigCommand) Reset() {
 	}
 }
 
-func (x *ApplyStandaloneConfigCommand) String() string {
+func (x *ApplyConfigCommand) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ApplyStandaloneConfigCommand) ProtoMessage() {}
+func (*ApplyConfigCommand) ProtoMessage() {}
 
-func (x *ApplyStandaloneConfigCommand) ProtoReflect() protoreflect.Message {
+func (x *ApplyConfigCommand) ProtoReflect() protoreflect.Message {
 	mi := &file_kuiper_model_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -719,44 +766,50 @@ func (x *ApplyStandaloneConfigCommand) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ApplyStandaloneConfigCommand.ProtoReflect.Descriptor instead.
-func (*ApplyStandaloneConfigCommand) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApplyConfigCommand.ProtoReflect.Descriptor instead.
+func (*ApplyConfigCommand) Descriptor() ([]byte, []int) {
 	return file_kuiper_model_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *ApplyStandaloneConfigCommand) GetConfig() *StandaloneConfig {
+func (x *ApplyConfigCommand) GetConfig() []byte {
 	if x != nil {
 		return x.Config
 	}
 	return nil
 }
 
-func (x *ApplyStandaloneConfigCommand) GetTaskId() string {
+func (x *ApplyConfigCommand) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
 	}
 	return ""
 }
 
-func (x *ApplyStandaloneConfigCommand) GetNamespace() string {
+func (x *ApplyConfigCommand) GetNamespace() string {
 	if x != nil {
 		return x.Namespace
 	}
 	return ""
 }
 
-type ApplyConfigGroupCommand struct {
+func (x *ApplyConfigCommand) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+type ApplyConfigReply struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Group     *ConfigGroup `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
-	TaskId    string       `protobuf:"bytes,2,opt,name=taskId,proto3" json:"taskId,omitempty"`
-	Namespace string       `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Cmd    *ApplyConfigCommand `protobuf:"bytes,1,opt,name=cmd,proto3" json:"cmd,omitempty"`
+	Status TaskStatus          `protobuf:"varint,2,opt,name=status,proto3,enum=proto.TaskStatus" json:"status,omitempty"`
 }
 
-func (x *ApplyConfigGroupCommand) Reset() {
-	*x = ApplyConfigGroupCommand{}
+func (x *ApplyConfigReply) Reset() {
+	*x = ApplyConfigReply{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_kuiper_model_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -764,13 +817,13 @@ func (x *ApplyConfigGroupCommand) Reset() {
 	}
 }
 
-func (x *ApplyConfigGroupCommand) String() string {
+func (x *ApplyConfigReply) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ApplyConfigGroupCommand) ProtoMessage() {}
+func (*ApplyConfigReply) ProtoMessage() {}
 
-func (x *ApplyConfigGroupCommand) ProtoReflect() protoreflect.Message {
+func (x *ApplyConfigReply) ProtoReflect() protoreflect.Message {
 	mi := &file_kuiper_model_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -782,30 +835,23 @@ func (x *ApplyConfigGroupCommand) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ApplyConfigGroupCommand.ProtoReflect.Descriptor instead.
-func (*ApplyConfigGroupCommand) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApplyConfigReply.ProtoReflect.Descriptor instead.
+func (*ApplyConfigReply) Descriptor() ([]byte, []int) {
 	return file_kuiper_model_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *ApplyConfigGroupCommand) GetGroup() *ConfigGroup {
+func (x *ApplyConfigReply) GetCmd() *ApplyConfigCommand {
 	if x != nil {
-		return x.Group
+		return x.Cmd
 	}
 	return nil
 }
 
-func (x *ApplyConfigGroupCommand) GetTaskId() string {
+func (x *ApplyConfigReply) GetStatus() TaskStatus {
 	if x != nil {
-		return x.TaskId
+		return x.Status
 	}
-	return ""
-}
-
-func (x *ApplyConfigGroupCommand) GetNamespace() string {
-	if x != nil {
-		return x.Namespace
-	}
-	return ""
+	return TaskStatus_Placed
 }
 
 var File_kuiper_model_proto protoreflect.FileDescriptor
@@ -889,25 +935,26 @@ var file_kuiper_model_proto_rawDesc = []byte{
 	0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x2a, 0x0a, 0x05, 0x44, 0x69, 0x66, 0x66, 0x73, 0x12, 0x21,
 	0x0a, 0x05, 0x64, 0x69, 0x66, 0x66, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0b, 0x2e,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x52, 0x05, 0x64, 0x69, 0x66, 0x66,
-	0x73, 0x22, 0x85, 0x01, 0x0a, 0x1c, 0x41, 0x70, 0x70, 0x6c, 0x79, 0x53, 0x74, 0x61, 0x6e, 0x64,
-	0x61, 0x6c, 0x6f, 0x6e, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43, 0x6f, 0x6d, 0x6d, 0x61,
-	0x6e, 0x64, 0x12, 0x2f, 0x0a, 0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x53, 0x74, 0x61, 0x6e, 0x64,
-	0x61, 0x6c, 0x6f, 0x6e, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x06, 0x63, 0x6f, 0x6e,
-	0x66, 0x69, 0x67, 0x12, 0x16, 0x0a, 0x06, 0x74, 0x61, 0x73, 0x6b, 0x49, 0x64, 0x18, 0x02, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x06, 0x74, 0x61, 0x73, 0x6b, 0x49, 0x64, 0x12, 0x1c, 0x0a, 0x09, 0x6e,
-	0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09,
-	0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x22, 0x79, 0x0a, 0x17, 0x41, 0x70, 0x70,
-	0x6c, 0x79, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x43, 0x6f, 0x6d,
-	0x6d, 0x61, 0x6e, 0x64, 0x12, 0x28, 0x0a, 0x05, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x43, 0x6f, 0x6e, 0x66,
-	0x69, 0x67, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x52, 0x05, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x12, 0x16,
-	0x0a, 0x06, 0x74, 0x61, 0x73, 0x6b, 0x49, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
-	0x74, 0x61, 0x73, 0x6b, 0x49, 0x64, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73,
-	0x70, 0x61, 0x63, 0x65, 0x42, 0x20, 0x5a, 0x1e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
-	0x6f, 0x6d, 0x2f, 0x63, 0x31, 0x32, 0x73, 0x2f, 0x6b, 0x75, 0x69, 0x70, 0x65, 0x72, 0x2f, 0x70,
-	0x6b, 0x67, 0x2f, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x22, 0x76, 0x0a, 0x12, 0x41, 0x70, 0x70, 0x6c, 0x79, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69,
+	0x67, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12,
+	0x16, 0x0a, 0x06, 0x74, 0x61, 0x73, 0x6b, 0x49, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x06, 0x74, 0x61, 0x73, 0x6b, 0x49, 0x64, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73,
+	0x70, 0x61, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61, 0x6d, 0x65,
+	0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x04, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0x6a, 0x0a, 0x10, 0x41, 0x70, 0x70,
+	0x6c, 0x79, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x2b, 0x0a,
+	0x03, 0x63, 0x6d, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x19, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2e, 0x41, 0x70, 0x70, 0x6c, 0x79, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43, 0x6f,
+	0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x52, 0x03, 0x63, 0x6d, 0x64, 0x12, 0x29, 0x0a, 0x06, 0x73, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x11, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2e, 0x54, 0x61, 0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x06, 0x73,
+	0x74, 0x61, 0x74, 0x75, 0x73, 0x2a, 0x24, 0x0a, 0x0a, 0x54, 0x61, 0x73, 0x6b, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x12, 0x0a, 0x0a, 0x06, 0x50, 0x6c, 0x61, 0x63, 0x65, 0x64, 0x10, 0x00, 0x12,
+	0x0a, 0x0a, 0x06, 0x46, 0x61, 0x69, 0x6c, 0x65, 0x64, 0x10, 0x01, 0x42, 0x20, 0x5a, 0x1e, 0x67,
+	0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x31, 0x32, 0x73, 0x2f, 0x6b,
+	0x75, 0x69, 0x70, 0x65, 0x72, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -922,32 +969,34 @@ func file_kuiper_model_proto_rawDescGZIP() []byte {
 	return file_kuiper_model_proto_rawDescData
 }
 
+var file_kuiper_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_kuiper_model_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_kuiper_model_proto_goTypes = []interface{}{
-	(*Param)(nil),                        // 0: proto.Param
-	(*NamedParamSet)(nil),                // 1: proto.NamedParamSet
-	(*NewStandaloneConfig)(nil),          // 2: proto.NewStandaloneConfig
-	(*StandaloneConfig)(nil),             // 3: proto.StandaloneConfig
-	(*NewConfigGroup)(nil),               // 4: proto.NewConfigGroup
-	(*ConfigGroup)(nil),                  // 5: proto.ConfigGroup
-	(*ConfigId)(nil),                     // 6: proto.ConfigId
-	(*PlacementTask)(nil),                // 7: proto.PlacementTask
-	(*Diff)(nil),                         // 8: proto.Diff
-	(*Diffs)(nil),                        // 9: proto.Diffs
-	(*ApplyStandaloneConfigCommand)(nil), // 10: proto.ApplyStandaloneConfigCommand
-	(*ApplyConfigGroupCommand)(nil),      // 11: proto.ApplyConfigGroupCommand
-	nil,                                  // 12: proto.Diff.DiffEntry
+	(TaskStatus)(0),             // 0: proto.TaskStatus
+	(*Param)(nil),               // 1: proto.Param
+	(*NamedParamSet)(nil),       // 2: proto.NamedParamSet
+	(*NewStandaloneConfig)(nil), // 3: proto.NewStandaloneConfig
+	(*StandaloneConfig)(nil),    // 4: proto.StandaloneConfig
+	(*NewConfigGroup)(nil),      // 5: proto.NewConfigGroup
+	(*ConfigGroup)(nil),         // 6: proto.ConfigGroup
+	(*ConfigId)(nil),            // 7: proto.ConfigId
+	(*PlacementTask)(nil),       // 8: proto.PlacementTask
+	(*Diff)(nil),                // 9: proto.Diff
+	(*Diffs)(nil),               // 10: proto.Diffs
+	(*ApplyConfigCommand)(nil),  // 11: proto.ApplyConfigCommand
+	(*ApplyConfigReply)(nil),    // 12: proto.ApplyConfigReply
+	nil,                         // 13: proto.Diff.DiffEntry
 }
 var file_kuiper_model_proto_depIdxs = []int32{
-	0,  // 0: proto.NamedParamSet.paramSet:type_name -> proto.Param
-	0,  // 1: proto.NewStandaloneConfig.paramSet:type_name -> proto.Param
-	0,  // 2: proto.StandaloneConfig.paramSet:type_name -> proto.Param
-	1,  // 3: proto.NewConfigGroup.paramSets:type_name -> proto.NamedParamSet
-	1,  // 4: proto.ConfigGroup.paramSets:type_name -> proto.NamedParamSet
-	12, // 5: proto.Diff.diff:type_name -> proto.Diff.DiffEntry
-	8,  // 6: proto.Diffs.diffs:type_name -> proto.Diff
-	3,  // 7: proto.ApplyStandaloneConfigCommand.config:type_name -> proto.StandaloneConfig
-	5,  // 8: proto.ApplyConfigGroupCommand.group:type_name -> proto.ConfigGroup
+	1,  // 0: proto.NamedParamSet.paramSet:type_name -> proto.Param
+	1,  // 1: proto.NewStandaloneConfig.paramSet:type_name -> proto.Param
+	1,  // 2: proto.StandaloneConfig.paramSet:type_name -> proto.Param
+	2,  // 3: proto.NewConfigGroup.paramSets:type_name -> proto.NamedParamSet
+	2,  // 4: proto.ConfigGroup.paramSets:type_name -> proto.NamedParamSet
+	13, // 5: proto.Diff.diff:type_name -> proto.Diff.DiffEntry
+	9,  // 6: proto.Diffs.diffs:type_name -> proto.Diff
+	11, // 7: proto.ApplyConfigReply.cmd:type_name -> proto.ApplyConfigCommand
+	0,  // 8: proto.ApplyConfigReply.status:type_name -> proto.TaskStatus
 	9,  // [9:9] is the sub-list for method output_type
 	9,  // [9:9] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
@@ -1082,7 +1131,7 @@ func file_kuiper_model_proto_init() {
 			}
 		}
 		file_kuiper_model_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ApplyStandaloneConfigCommand); i {
+			switch v := v.(*ApplyConfigCommand); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1094,7 +1143,7 @@ func file_kuiper_model_proto_init() {
 			}
 		}
 		file_kuiper_model_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ApplyConfigGroupCommand); i {
+			switch v := v.(*ApplyConfigReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1111,13 +1160,14 @@ func file_kuiper_model_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_kuiper_model_proto_rawDesc,
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_kuiper_model_proto_goTypes,
 		DependencyIndexes: file_kuiper_model_proto_depIdxs,
+		EnumInfos:         file_kuiper_model_proto_enumTypes,
 		MessageInfos:      file_kuiper_model_proto_msgTypes,
 	}.Build()
 	File_kuiper_model_proto = out.File

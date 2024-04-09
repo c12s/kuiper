@@ -11,6 +11,8 @@ type Config struct {
 	oortAddress       string
 	etcdAddress       string
 	serverAddress     string
+	webhooksAddress   string
+	webhookUrl        string
 	tokenKey          string
 }
 
@@ -38,6 +40,14 @@ func (c *Config) ServerAddress() string {
 	return c.serverAddress
 }
 
+func (c *Config) WebhooksAddress() string {
+	return c.webhooksAddress
+}
+
+func (c *Config) WebhookUrl() string {
+	return c.webhookUrl
+}
+
 func (c *Config) TokenKey() string {
 	return c.tokenKey
 }
@@ -50,6 +60,8 @@ func NewFromEnv() (*Config, error) {
 		oortAddress:       os.Getenv("OORT_ADDRESS"),
 		etcdAddress:       os.Getenv("ETCD_ADDRESS"),
 		serverAddress:     os.Getenv("KUIPER_ADDRESS"),
+		webhooksAddress:   os.Getenv("WEBHOOK_ADDRESS"),
+		webhookUrl:        os.Getenv("WEBHOOK_URL"),
 		tokenKey:          os.Getenv("SECRET_KEY"),
 	}, nil
 }

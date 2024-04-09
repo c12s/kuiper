@@ -101,23 +101,29 @@ func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, nam
 		return nil, err
 	}
 	return s.placements.Place(ctx, config, namespace, nodeQuery, func(taskId string) ([]byte, *domain.Error) {
-		cmd := &api.ApplyStandaloneConfigCommand{
+		config := &api.StandaloneConfig{
+			Organization: string(config.Org()),
+			Name:         config.Name(),
+			Version:      config.Version(),
+			CreatedAt:    config.CreatedAtUTC().String(),
+			ParamSet:     mapParamSet(config.ParamSet()),
+		}
+		configMarshalled, err := proto.Marshal(config)
+		if err != nil {
+			return nil, domain.NewError(domain.ErrTypeMarshalSS, err.Error())
+		}
+		cmd := &api.ApplyConfigCommand{
 			TaskId:    taskId,
 			Namespace: namespace,
-			Config: &api.StandaloneConfig{
-				Organization: string(config.Org()),
-				Name:         config.Name(),
-				Version:      config.Version(),
-				CreatedAt:    config.CreatedAtUTC().String(),
-				ParamSet:     mapParamSet(config.ParamSet()),
-			},
+			Config:    configMarshalled,
+			Type:      "standalone",
 		}
 		cmdMarshalled, err := proto.Marshal(cmd)
 		if err != nil {
 			return nil, domain.NewError(domain.ErrTypeMarshalSS, err.Error())
 		}
 		return cmdMarshalled, nil
-	})
+	}, "/standalone")
 }
 
 func (s *StandaloneConfigService) ListPlacementTasks(ctx context.Context, org domain.Org, name, version string) ([]domain.PlacementTask, *domain.Error) {

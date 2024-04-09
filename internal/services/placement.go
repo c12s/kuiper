@@ -15,24 +15,26 @@ import (
 )
 
 type PlacementService struct {
-	magnetar      magnetarapi.MagnetarClient
-	aq            agent_queue.AgentQueueClient
-	administrator *oortapi.AdministrationAsyncClient
-	authorizer    *AuthZService
-	store         domain.PlacementStore
+	magnetar       magnetarapi.MagnetarClient
+	aq             agent_queue.AgentQueueClient
+	administrator  *oortapi.AdministrationAsyncClient
+	authorizer     *AuthZService
+	store          domain.PlacementStore
+	webhookBaseUrl string
 }
 
-func NewPlacementStore(magnetar magnetarapi.MagnetarClient, aq agent_queue.AgentQueueClient, administrator *oortapi.AdministrationAsyncClient, authorizer *AuthZService, store domain.PlacementStore) *PlacementService {
+func NewPlacementStore(magnetar magnetarapi.MagnetarClient, aq agent_queue.AgentQueueClient, administrator *oortapi.AdministrationAsyncClient, authorizer *AuthZService, store domain.PlacementStore, webhookBaseUrl string) *PlacementService {
 	return &PlacementService{
-		magnetar:      magnetar,
-		aq:            aq,
-		administrator: administrator,
-		authorizer:    authorizer,
-		store:         store,
+		magnetar:       magnetar,
+		aq:             aq,
+		administrator:  administrator,
+		authorizer:     authorizer,
+		store:          store,
+		webhookBaseUrl: webhookBaseUrl,
 	}
 }
 
-func (s *PlacementService) Place(ctx context.Context, config domain.Config, namespace string, nodeQuery []*magnetarapi.Selector, cmd func(taskId string) ([]byte, *domain.Error)) ([]domain.PlacementTask, *domain.Error) {
+func (s *PlacementService) Place(ctx context.Context, config domain.Config, namespace string, nodeQuery []*magnetarapi.Selector, cmd func(taskId string) ([]byte, *domain.Error), webhookPath string) ([]domain.PlacementTask, *domain.Error) {
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(config.Type(), string(config.Org()), config.Name(), config.Version())) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -92,7 +94,7 @@ func (s *PlacementService) Place(ctx context.Context, config domain.Config, name
 			log.Println(err)
 			continue
 		}
-		deseminateErr := deseminateConfig(ctx, node.Id, cmdMarshalled, s.aq)
+		deseminateErr := deseminateConfig(ctx, node.Id, cmdMarshalled, s.aq, s.webhookBaseUrl+webhookPath)
 		if deseminateErr != nil {
 			log.Println(deseminateErr)
 		}
@@ -101,14 +103,19 @@ func (s *PlacementService) Place(ctx context.Context, config domain.Config, name
 }
 
 func (s *PlacementService) List(ctx context.Context, org domain.Org, name, version, configType string) ([]domain.PlacementTask, *domain.Error) {
-	return s.store.GetPlacement(ctx, org, name, version, configType)
+	return s.store.ListByConfig(ctx, org, name, version, configType)
 }
 
-func deseminateConfig(ctx context.Context, nodeId string, cmd []byte, agentQueueClient agent_queue.AgentQueueClient) error {
+func (s *PlacementService) UpdateStatus(ctx context.Context, org domain.Org, name, version, configType, taskId string, status domain.PlacementTaskStatus) *domain.Error {
+	return s.store.UpdateStatus(ctx, org, name, version, configType, taskId, status)
+}
+
+func deseminateConfig(ctx context.Context, nodeId string, cmd []byte, agentQueueClient agent_queue.AgentQueueClient, whUrl string) error {
 	log.Printf("diseminating to node %s", nodeId)
 	_, err := agentQueueClient.DeseminateConfig(ctx, &agent_queue.DeseminateConfigRequest{
-		NodeId: nodeId,
-		Config: cmd,
+		NodeId:  nodeId,
+		Config:  cmd,
+		Webhook: whUrl,
 	})
 	return err
 }

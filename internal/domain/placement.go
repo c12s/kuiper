@@ -84,5 +84,6 @@ func (p *PlacementTask) Status() PlacementTaskStatus {
 
 type PlacementStore interface {
 	Place(ctx context.Context, config Config, req *PlacementTask) *Error
-	GetPlacement(ctx context.Context, org Org, name, version, configType string) ([]PlacementTask, *Error)
+	ListByConfig(ctx context.Context, org Org, name, version, configType string) ([]PlacementTask, *Error)
+	UpdateStatus(ctx context.Context, org Org, name, version, configType, taskId string, status PlacementTaskStatus) *Error
 }

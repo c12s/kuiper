@@ -44,6 +44,7 @@ func (s ConfigGroupEtcdStore) Put(ctx context.Context, config *domain.ConfigGrou
 		return domain.NewError(domain.ErrTypeMarshalSS, err.Error())
 	}
 
+	
 	resp, err := s.client.KV.Txn(ctx).If(clientv3.CreateRevision(key)).Then(clientv3.OpPut(key, value)).Commit()
 	if !resp.Succeeded {
 		return domain.NewError(domain.ErrTypeVersionExists, fmt.Sprintf("config group (Org: %s, name: %s, version: %s) already exists", config.Org(), config.Name(), config.Version()))

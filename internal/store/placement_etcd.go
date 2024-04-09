@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/c12s/kuiper/internal/domain"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -46,7 +47,7 @@ func (s PlacementEtcdStore) Place(ctx context.Context, config domain.Config, req
 	return nil
 }
 
-func (s PlacementEtcdStore) GetPlacement(ctx context.Context, org domain.Org, name string, version, configType string) ([]domain.PlacementTask, *domain.Error) {
+func (s PlacementEtcdStore) ListByConfig(ctx context.Context, org domain.Org, name string, version, configType string) ([]domain.PlacementTask, *domain.Error) {
 	key := PlacementTaskDAO{
 		Org:     string(org),
 		Name:    name,
@@ -68,6 +69,41 @@ func (s PlacementEtcdStore) GetPlacement(ctx context.Context, org domain.Org, na
 	}
 
 	return reqs, nil
+}
+
+func (s PlacementEtcdStore) UpdateStatus(ctx context.Context, org domain.Org, name string, version string, configType string, taskId string, status domain.PlacementTaskStatus) *domain.Error {
+	key := PlacementTaskDAO{
+		Id:      taskId,
+		Org:     string(org),
+		Name:    name,
+		Version: version,
+	}.Key(configType)
+	resp, err := s.client.KV.Get(ctx, key)
+	if err != nil {
+		return domain.NewError(domain.ErrTypeDb, err.Error())
+	}
+	if len(resp.Kvs) == 0 {
+		return domain.NewError(domain.ErrTypeNotFound, fmt.Sprintf("task (id=%s) not found", taskId))
+	}
+
+	dao, err := NewPlacementTaskDAO(resp.Kvs[0].Value)
+	if err != nil {
+		return domain.NewError(domain.ErrTypeMarshalSS, err.Error())
+	}
+
+	dao.Status = status
+	dao.ResolvedAt = time.Now().Unix()
+
+	value, err := dao.Marshal()
+	if err != nil {
+		return domain.NewError(domain.ErrTypeMarshalSS, err.Error())
+	}
+
+	_, err = s.client.Put(ctx, key, value)
+	if err != nil {
+		return domain.NewError(domain.ErrTypeDb, err.Error())
+	}
+	return nil
 }
 
 type PlacementTaskDAO struct {
