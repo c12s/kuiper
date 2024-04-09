@@ -8,6 +8,7 @@ type Config struct {
 	natsAddress       string
 	magnetarAddress   string
 	agentQueueAddress string
+	quasarAddress     string
 	oortAddress       string
 	etcdAddress       string
 	serverAddress     string
@@ -30,6 +31,10 @@ func (c *Config) AgentQueueAddress() string {
 
 func (c *Config) OortAddress() string {
 	return c.oortAddress
+}
+
+func (c *Config) QuasarAddress() string {
+	return c.quasarAddress
 }
 
 func (c *Config) EtcdAddress() string {
@@ -57,6 +62,7 @@ func NewFromEnv() (*Config, error) {
 		natsAddress:       os.Getenv("NATS_ADDRESS"),
 		magnetarAddress:   os.Getenv("MAGNETAR_ADDRESS"),
 		agentQueueAddress: os.Getenv("AGENT_QUEUE_ADDRESS"),
+		quasarAddress:     os.Getenv("QUASAR_ADDRESS"),
 		oortAddress:       os.Getenv("OORT_ADDRESS"),
 		etcdAddress:       os.Getenv("ETCD_ADDRESS"),
 		serverAddress:     os.Getenv("KUIPER_ADDRESS"),

@@ -10,7 +10,9 @@ import (
 	"github.com/c12s/kuiper/pkg/api"
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
+	quasarapi "github.com/c12s/quasar/proto"
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v3"
 )
 
 type StandaloneConfigService struct {
@@ -18,21 +20,45 @@ type StandaloneConfigService struct {
 	authorizer    *AuthZService
 	store         domain.StandaloneConfigStore
 	placements    *PlacementService
+	quasar        quasarapi.ConfigSchemaServiceClient
 }
 
-func NewStandaloneConfigService(evaluator oortapi.OortEvaluatorClient, administrator *oortapi.AdministrationAsyncClient, authorizer *AuthZService, store domain.StandaloneConfigStore, placements *PlacementService) *StandaloneConfigService {
+func NewStandaloneConfigService(administrator *oortapi.AdministrationAsyncClient, authorizer *AuthZService, store domain.StandaloneConfigStore, placements *PlacementService, quasar quasarapi.ConfigSchemaServiceClient) *StandaloneConfigService {
 	return &StandaloneConfigService{
 		administrator: administrator,
 		authorizer:    authorizer,
 		store:         store,
 		placements:    placements,
+		quasar:        quasar,
 	}
 }
 
-func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.StandaloneConfig) (*domain.StandaloneConfig, *domain.Error) {
+func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.StandaloneConfig, schema *quasarapi.ConfigSchemaDetails) (*domain.StandaloneConfig, *domain.Error) {
 	if !s.authorizer.Authorize(ctx, PermConfigPut, OortResOrg, string(config.Org())) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigPut))
 	}
+	if schema != nil {
+		configMap := make(map[string]map[string]string)
+		configMap[config.Name()] = make(map[string]string)
+		for key, value := range config.ParamSet() {
+			configMap[config.Name()][key] = value
+		}
+		yamlBytes, err := yaml.Marshal(configMap)
+		if err != nil {
+			return nil, domain.NewError(domain.ErrTypeMarshalSS, err.Error())
+		}
+		resp, err := s.quasar.ValidateConfiguration(ctx, &quasarapi.ValidateConfigurationRequest{
+			SchemaDetails: schema,
+			Configuration: string(yamlBytes),
+		})
+		if err != nil {
+			return nil, domain.NewError(domain.ErrTypeInternal, err.Error())
+		}
+		if !resp.IsValid {
+			return nil, domain.NewError(domain.ErrTypeSchemaInvalid, resp.Message)
+		}
+	}
+
 	config.SetCreatedAt(time.Now())
 	err := s.store.Put(ctx, config)
 	if err != nil {

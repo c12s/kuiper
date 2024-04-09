@@ -7,7 +7,8 @@ toolchain go1.21.4
 require (
 	github.com/c12s/magnetar v1.0.0
 	github.com/c12s/oort v1.0.0
-	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/c12s/quasar v1.0.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/nats-io/nats.go v1.31.0
@@ -36,9 +37,12 @@ require (
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/c12s/magnetar => ../magnetar
+
+replace github.com/c12s/quasar => ../quasar
 
 replace iam-service => ../iam-service/iam-service
 

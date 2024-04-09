@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/c12s/kuiper/pkg/api"
+	quasarapi "github.com/c12s/quasar/proto"
 )
 
 type KuiperGrpcServer struct {
@@ -29,7 +30,16 @@ func NewKuiperServer(standalone *services.StandaloneConfigService, groups *servi
 func (s *KuiperGrpcServer) PutStandaloneConfig(ctx context.Context, req *api.NewStandaloneConfig) (*api.StandaloneConfig, error) {
 	paramSet := mapProtoParamSet(req.Name, req.ParamSet)
 	config := domain.NewStandaloneConfig(domain.Org(req.Organization), req.Version, *paramSet)
-	config, err := s.standalone.Put(ctx, config)
+	var schema *quasarapi.ConfigSchemaDetails
+	if req.Schema != nil {
+		schema = &quasarapi.ConfigSchemaDetails{
+			Organization: req.Organization,
+			SchemaName:   req.Schema.Name,
+			Version:      req.Schema.Version,
+		}
+	}
+
+	config, err := s.standalone.Put(ctx, config, schema)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -133,8 +143,16 @@ func (s *KuiperGrpcServer) ListPlacementTaskByStandaloneConfig(ctx context.Conte
 func (s *KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.NewConfigGroup) (*api.ConfigGroup, error) {
 	paramSets := mapProtoParamSets(req.ParamSets)
 	config := domain.NewConfigGroup(domain.Org(req.Organization), req.Name, req.Version, paramSets)
+	var schema *quasarapi.ConfigSchemaDetails
+	if req.Schema != nil {
+		schema = &quasarapi.ConfigSchemaDetails{
+			Organization: req.Organization,
+			SchemaName:   req.Schema.Name,
+			Version:      req.Schema.Version,
+		}
+	}
 
-	config, err := s.groups.Put(ctx, config)
+	config, err := s.groups.Put(ctx, config, schema)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -269,6 +287,8 @@ func mapError(err *domain.Error) error {
 		return status.Error(codes.PermissionDenied, err.Message())
 	case domain.ErrTypeInternal:
 		return status.Error(codes.Internal, err.Message())
+	case domain.ErrTypeSchemaInvalid:
+		return status.Error(codes.InvalidArgument, err.Message())
 	default:
 		return status.Error(codes.Unknown, err.Message())
 	}

@@ -14,11 +14,17 @@ message NamedParamSet {
   repeated Param paramSet = 2;
 }
 
+message Schema {
+  string name = 1;
+  string version = 2;
+}
+
 message NewStandaloneConfig {
   string organization = 1;
   string name = 2;
   string version = 3;
   repeated Param paramSet = 4;
+  Schema schema = 5;
 }
 
 message StandaloneConfig {
@@ -34,6 +40,7 @@ message NewConfigGroup {
   string name = 2;
   string version = 3;
   repeated NamedParamSet paramSets = 4;
+  Schema schema = 5;
 }
 
 message ConfigGroup {

@@ -51,17 +51,17 @@ func (a *app) init() {
 		log.Fatalln(err)
 	}
 
+	quasarClient, err := newQuasarClient(a.config.QuasarAddress())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	agentQueueClient, err := newAgentQueueClient(a.config.AgentQueueAddress())
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	administratorClient, err := newOortAdministratorClient(a.config.NatsAddress())
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	evaluatorClient, err := newOortEvaluatorClient(a.config.OortAddress())
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -73,8 +73,8 @@ func (a *app) init() {
 	placementStore := store.NewPlacementEtcdStore(etcdConn)
 
 	placementService := services.NewPlacementStore(magnetarClient, agentQueueClient, administratorClient, authzService, placementStore, a.config.WebhookUrl())
-	standaloneConfigService := services.NewStandaloneConfigService(evaluatorClient, administratorClient, authzService, standaloneConfigStore, placementService)
-	configGroupService := services.NewConfigGroupService(evaluatorClient, administratorClient, authzService, configGroupStore, placementService)
+	standaloneConfigService := services.NewStandaloneConfigService(administratorClient, authzService, standaloneConfigStore, placementService, quasarClient)
+	configGroupService := services.NewConfigGroupService(administratorClient, authzService, configGroupStore, placementService, quasarClient)
 
 	kuiperGrpcServer := servers.NewKuiperServer(standaloneConfigService, configGroupService)
 	s := grpc.NewServer(grpc.UnaryInterceptor(servers.GetAuthInterceptor()))

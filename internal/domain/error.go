@@ -9,6 +9,7 @@ const (
 	ErrTypeVersionExists
 	ErrTypeUnauthorized
 	ErrTypeInternal
+	ErrTypeSchemaInvalid
 )
 
 type Error struct {
