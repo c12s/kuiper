@@ -71,9 +71,11 @@ message Diffs {
 message ApplyStandaloneConfigCommand {
   StandaloneConfig config = 1;
   string taskId = 2;
+  string namespace = 3;
 }
 
 message ApplyConfigGroupCommand {
   ConfigGroup group = 1;
   string taskId = 2;
+  string namespace = 3;
 }

@@ -102,7 +102,8 @@ func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, name, ve
 	}
 	return s.placements.Place(ctx, config, namespace, nodeQuery, func(taskId string) ([]byte, *domain.Error) {
 		cmd := &api.ApplyConfigGroupCommand{
-			TaskId: taskId,
+			TaskId:    taskId,
+			Namespace: namespace,
 			Group: &api.ConfigGroup{
 				Organization: string(config.Org()),
 				Name:         config.Name(),

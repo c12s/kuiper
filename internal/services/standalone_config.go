@@ -102,7 +102,8 @@ func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, nam
 	}
 	return s.placements.Place(ctx, config, namespace, nodeQuery, func(taskId string) ([]byte, *domain.Error) {
 		cmd := &api.ApplyStandaloneConfigCommand{
-			TaskId: taskId,
+			TaskId:    taskId,
+			Namespace: namespace,
 			Config: &api.StandaloneConfig{
 				Organization: string(config.Org()),
 				Name:         config.Name(),
