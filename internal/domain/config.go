@@ -6,32 +6,16 @@ import (
 	"time"
 )
 
+const (
+	ConfTypeStandalone = "standalone"
+	ConfTypeGroup      = "groups"
+)
+
 type Node string
 
 type Namespace string
 
 type Org string
-
-type PlacementReqStatus int8
-
-const (
-	PlacementReqStatusAccepted PlacementReqStatus = iota
-	PlacementReqStatusPlaced
-	PlacementReqStatusFailed
-)
-
-func (s PlacementReqStatus) String() string {
-	switch s {
-	case PlacementReqStatusAccepted:
-		return "Accepted"
-	case PlacementReqStatusPlaced:
-		return "Placed"
-	case PlacementReqStatusFailed:
-		return "Failed"
-	default:
-		return "Unknown"
-	}
-}
 
 type Config interface {
 	Org() Org
@@ -39,6 +23,7 @@ type Config interface {
 	Version() string
 	CreatedAtUnixSec() int64
 	CreatedAtUTC() time.Time
+	Type() string
 }
 
 type ConfigBase struct {
@@ -53,6 +38,10 @@ func (c *ConfigBase) Org() Org {
 
 func (c *ConfigBase) Version() string {
 	return c.version
+}
+
+func (c *ConfigBase) SetCreatedAt(createdAt time.Time) {
+	c.createdAt = createdAt.Unix()
 }
 
 func (c *ConfigBase) CreatedAtUnixSec() int64 {
@@ -131,12 +120,22 @@ type StandaloneConfig struct {
 	paramSet NamedParamSet
 }
 
-func NewStandaloneConfig(org Org, version string, createdAt int64, paramSet NamedParamSet) *StandaloneConfig {
+func InitStandaloneConfig(org Org, version string, createdAt int64, paramSet NamedParamSet) *StandaloneConfig {
 	return &StandaloneConfig{
 		ConfigBase: ConfigBase{
 			org:       org,
 			version:   version,
 			createdAt: createdAt,
+		},
+		paramSet: paramSet,
+	}
+}
+
+func NewStandaloneConfig(org Org, version string, paramSet NamedParamSet) *StandaloneConfig {
+	return &StandaloneConfig{
+		ConfigBase: ConfigBase{
+			org:     org,
+			version: version,
 		},
 		paramSet: paramSet,
 	}
@@ -154,18 +153,33 @@ func (c *StandaloneConfig) Diff(cmp *StandaloneConfig) []Diff {
 	return c.paramSet.Diff(cmp.paramSet)
 }
 
+func (c *StandaloneConfig) Type() string {
+	return ConfTypeStandalone
+}
+
 type ConfigGroup struct {
 	ConfigBase
 	name      string
 	paramSets []NamedParamSet
 }
 
-func NewConfigGroup(org Org, name, version string, createdAt int64, paramSets []NamedParamSet) *ConfigGroup {
+func InitConfigGroup(org Org, name, version string, createdAt int64, paramSets []NamedParamSet) *ConfigGroup {
 	return &ConfigGroup{
 		ConfigBase: ConfigBase{
 			org:       org,
 			version:   version,
 			createdAt: createdAt,
+		},
+		name:      name,
+		paramSets: paramSets,
+	}
+}
+
+func NewConfigGroup(org Org, name, version string, paramSets []NamedParamSet) *ConfigGroup {
+	return &ConfigGroup{
+		ConfigBase: ConfigBase{
+			org:     org,
+			version: version,
 		},
 		name:      name,
 		paramSets: paramSets,
@@ -224,6 +238,10 @@ func (c *ConfigGroup) Diff(cmp *ConfigGroup) map[string][]Diff {
 	}
 
 	return diffs
+}
+
+func (c *ConfigGroup) Type() string {
+	return ConfTypeGroup
 }
 
 type StandaloneConfigStore interface {

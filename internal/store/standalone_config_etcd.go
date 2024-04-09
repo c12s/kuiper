@@ -66,7 +66,7 @@ func (s StandaloneConfigEtcdStore) Get(ctx context.Context, org domain.Org, name
 	}
 
 	paramSet := domain.NewParamSet(dao.Name, dao.ParamSet)
-	return domain.NewStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet), nil
+	return domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet), nil
 }
 
 func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org) ([]*domain.StandaloneConfig, *domain.Error) {
@@ -86,7 +86,7 @@ func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org) ([]
 			continue
 		}
 		paramSet := domain.NewParamSet(dao.Name, dao.ParamSet)
-		configs = append(configs, domain.NewStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet))
+		configs = append(configs, domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet))
 	}
 
 	return configs, nil
@@ -113,7 +113,7 @@ func (s StandaloneConfigEtcdStore) Delete(ctx context.Context, org domain.Org, n
 	}
 
 	paramSet := domain.NewParamSet(dao.Name, dao.ParamSet)
-	return domain.NewStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet), nil
+	return domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet), nil
 }
 
 type StandaloneConfigDAO struct {

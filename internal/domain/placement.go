@@ -5,17 +5,38 @@ import (
 	"time"
 )
 
-type PlacementReq struct {
+type PlacementTaskStatus int8
+
+const (
+	PlacementTaskStatusAccepted PlacementTaskStatus = iota
+	PlacementTaskStatusPlaced
+	PlacementTaskStatusFailed
+)
+
+func (s PlacementTaskStatus) String() string {
+	switch s {
+	case PlacementTaskStatusAccepted:
+		return "Accepted"
+	case PlacementTaskStatusPlaced:
+		return "Placed"
+	case PlacementTaskStatusFailed:
+		return "Failed"
+	default:
+		return "Unknown"
+	}
+}
+
+type PlacementTask struct {
 	id         string
 	node       Node
 	namespace  Namespace
-	status     PlacementReqStatus
+	status     PlacementTaskStatus
 	acceptedAt int64
 	resolvedAt int64
 }
 
-func NewPlacementReq(id string, node Node, namepsace Namespace, status PlacementReqStatus, acceptedAt, resolvedAt int64) *PlacementReq {
-	return &PlacementReq{
+func NewPlacementTask(id string, node Node, namepsace Namespace, status PlacementTaskStatus, acceptedAt, resolvedAt int64) *PlacementTask {
+	return &PlacementTask{
 		id:         id,
 		node:       node,
 		namespace:  namepsace,
@@ -25,43 +46,43 @@ func NewPlacementReq(id string, node Node, namepsace Namespace, status Placement
 	}
 }
 
-func (p *PlacementReq) Id() string {
+func (p *PlacementTask) Id() string {
 	return p.id
 }
 
-func (p *PlacementReq) Node() Node {
+func (p *PlacementTask) Node() Node {
 	return p.node
 }
 
-func (p *PlacementReq) Namespace() Namespace {
+func (p *PlacementTask) Namespace() Namespace {
 	return p.namespace
 }
 
-func (p *PlacementReq) AcceptedAtUnixSec() int64 {
+func (p *PlacementTask) AcceptedAtUnixSec() int64 {
 	return p.acceptedAt
 }
 
-func (p *PlacementReq) AcceptedAtUTC() time.Time {
+func (p *PlacementTask) AcceptedAtUTC() time.Time {
 	return time.Unix(p.acceptedAt, 0).UTC()
 }
 
-func (p *PlacementReq) ResolvedAtUnixSec() int64 {
+func (p *PlacementTask) ResolvedAtUnixSec() int64 {
 	return p.resolvedAt
 }
 
-func (p *PlacementReq) ResolveddAtUTC() time.Time {
+func (p *PlacementTask) ResolveddAtUTC() time.Time {
 	return time.Unix(p.resolvedAt, 0).UTC()
 }
 
-func (p *PlacementReq) Resolved() bool {
-	return p.status != PlacementReqStatusAccepted
+func (p *PlacementTask) Resolved() bool {
+	return p.status != PlacementTaskStatusAccepted
 }
 
-func (p *PlacementReq) Status() PlacementReqStatus {
+func (p *PlacementTask) Status() PlacementTaskStatus {
 	return p.status
 }
 
 type PlacementStore interface {
-	Place(ctx context.Context, config Config, req *PlacementReq) *Error
-	GetPlacement(ctx context.Context, org Org, name, version string) ([]*PlacementReq, *Error)
+	Place(ctx context.Context, config Config, req *PlacementTask) *Error
+	GetPlacement(ctx context.Context, org Org, name, version, configType string) ([]PlacementTask, *Error)
 }

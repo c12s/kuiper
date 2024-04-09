@@ -8,6 +8,8 @@ import (
 
 type Diff interface {
 	Type() DiffType
+	String() string
+	Diff() map[string]string
 }
 
 type DiffType string
@@ -61,6 +63,13 @@ func (a Addition) String() string {
 	return string(jsonBytes)
 }
 
+func (a Addition) Diff() map[string]string {
+	return map[string]string{
+		"key":   a.Key,
+		"value": a.Value,
+	}
+}
+
 type Replace struct {
 	Key string
 	New string
@@ -91,6 +100,14 @@ func (r Replace) String() string {
 	return string(jsonBytes)
 }
 
+func (r Replace) Diff() map[string]string {
+	return map[string]string{
+		"key":       r.Key,
+		"old_value": r.Old,
+		"new_value": r.New,
+	}
+}
+
 type Deletion struct {
 	Key   string
 	Value string
@@ -116,4 +133,11 @@ func (d Deletion) String() string {
 		return ""
 	}
 	return string(jsonBytes)
+}
+
+func (d Deletion) Diff() map[string]string {
+	return map[string]string{
+		"key":   d.Key,
+		"value": d.Value,
+	}
 }

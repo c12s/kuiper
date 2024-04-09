@@ -7,6 +7,8 @@ const (
 	ErrTypeDb
 	ErrTypeNotFound
 	ErrTypeVersionExists
+	ErrTypeUnauthorized
+	ErrTypeInternal
 )
 
 type Error struct {

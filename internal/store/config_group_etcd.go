@@ -79,7 +79,7 @@ func (s ConfigGroupEtcdStore) Get(ctx context.Context, org domain.Org, name, ver
 		paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 	}
 
-	return domain.NewConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
+	return domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
 }
 
 func (s ConfigGroupEtcdStore) List(ctx context.Context, org domain.Org) ([]*domain.ConfigGroup, *domain.Error) {
@@ -104,7 +104,7 @@ func (s ConfigGroupEtcdStore) List(ctx context.Context, org domain.Org) ([]*doma
 			paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 		}
 
-		configs = append(configs, domain.NewConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil)
+		configs = append(configs, domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil)
 	}
 
 	return configs, nil
@@ -135,7 +135,7 @@ func (s ConfigGroupEtcdStore) Delete(ctx context.Context, org domain.Org, name, 
 		paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 	}
 
-	return domain.NewConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
+	return domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
 }
 
 type ConfigGroupDAO struct {

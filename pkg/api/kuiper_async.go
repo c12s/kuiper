@@ -2,10 +2,11 @@ package api
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/c12s/magnetar/pkg/messaging"
 	"github.com/c12s/magnetar/pkg/messaging/nats"
 	natsgo "github.com/nats-io/nats.go"
-	"log"
 )
 
 type KuiperAsyncClient struct {
@@ -26,15 +27,24 @@ func NewKuiperAsyncClient(address, nodeId string) (*KuiperAsyncClient, error) {
 	}, nil
 }
 
-func (c *KuiperAsyncClient) ReceiveConfig(handler PutConfigHandler) error {
+func (c *KuiperAsyncClient) ReceiveConfig(standaloneHandler PutStandaloneConfigHandler, groupHandler PutConfigGroupHandler) error {
 	err := c.subscriber.Subscribe(func(msg []byte, replySubject string) {
-		cmd := &ApplyConfigCommand{}
-		err := cmd.Unmarshal(msg)
-		if err != nil {
-			log.Println(err)
+		// todo: prosiri tako da se vraca odgovor koji ce se vratiti nazad kuiper-u
+		// o tome da li je task placed ili failed
+		standaloneCmd := &ApplyStandaloneConfigCommand{}
+		standaloneErr := standaloneCmd.Unmarshal(msg)
+		if standaloneErr == nil {
+			standaloneHandler(standaloneCmd)
 			return
 		}
-		handler(cmd)
+		groupCmd := &ApplyConfigGroupCommand{}
+		groupErr := groupCmd.Unmarshal(msg)
+		if groupErr == nil {
+			groupHandler(groupCmd)
+			return
+		}
+		log.Println(standaloneErr)
+		log.Println(groupErr)
 	})
 	return err
 }
@@ -46,7 +56,8 @@ func (c *KuiperAsyncClient) GracefulStop() {
 	}
 }
 
-type PutConfigHandler func(cmd *ApplyConfigCommand)
+type PutStandaloneConfigHandler func(cmd *ApplyStandaloneConfigCommand)
+type PutConfigGroupHandler func(cmd *ApplyConfigGroupCommand)
 
 func Subject(nodeId string) string {
 	return fmt.Sprintf("%s.configs", nodeId)
