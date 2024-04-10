@@ -11,6 +11,7 @@ import (
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
 	quasarapi "github.com/c12s/quasar/proto"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 )
@@ -46,6 +47,12 @@ func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.Standa
 		yamlBytes, err := yaml.Marshal(configMap)
 		if err != nil {
 			return nil, domain.NewError(domain.ErrTypeMarshalSS, err.Error())
+		}
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			log.Println("no metadata in ctx when sending req to magnetar")
+		} else {
+			ctx = metadata.NewOutgoingContext(ctx, md)
 		}
 		resp, err := s.quasar.ValidateConfiguration(ctx, &quasarapi.ValidateConfigurationRequest{
 			SchemaDetails: schema,
@@ -118,7 +125,7 @@ func (s *StandaloneConfigService) Diff(ctx context.Context, referenceOrg domain.
 	if err != nil {
 		return nil, err
 	}
-	return reference.Diff(diff), nil
+	return diff.Diff(reference), nil
 }
 
 func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, name, version, namespace string, nodeQuery []*magnetarapi.Selector) ([]domain.PlacementTask, *domain.Error) {

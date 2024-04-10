@@ -44,7 +44,6 @@ func (s ConfigGroupEtcdStore) Put(ctx context.Context, config *domain.ConfigGrou
 		return domain.NewError(domain.ErrTypeMarshalSS, err.Error())
 	}
 
-	
 	resp, err := s.client.KV.Txn(ctx).If(clientv3.CreateRevision(key)).Then(clientv3.OpPut(key, value)).Commit()
 	if !resp.Succeeded {
 		return domain.NewError(domain.ErrTypeVersionExists, fmt.Sprintf("config group (Org: %s, name: %s, version: %s) already exists", config.Org(), config.Name(), config.Version()))
@@ -105,7 +104,7 @@ func (s ConfigGroupEtcdStore) List(ctx context.Context, org domain.Org) ([]*doma
 			paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 		}
 
-		configs = append(configs, domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil)
+		configs = append(configs, domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets))
 	}
 
 	return configs, nil
