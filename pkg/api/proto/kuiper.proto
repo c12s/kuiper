@@ -6,26 +6,61 @@ import "magnetar.proto";
 package proto;
 
 service Kuiper {
-  rpc PutConfigGroup(PutConfigGroupReq) returns (PutConfigGroupResp) {}
-  rpc ApplyConfigGroup(ApplyConfigGroupReq) returns (ApplyConfigGroupResp) {}
+  rpc PutStandaloneConfig(NewStandaloneConfig) returns (StandaloneConfig) {}
+  rpc GetStandaloneConfig(ConfigId) returns (StandaloneConfig) {}
+  rpc ListStandaloneConfig(ListStandaloneConfigReq) returns (ListStandaloneConfigResp) {}
+  rpc DeleteStandaloneConfig(ConfigId) returns (StandaloneConfig) {}
+  rpc PlaceStandaloneConfig(PlaceReq) returns (PlaceResp) {}
+  rpc ListPlacementTaskByStandaloneConfig(ConfigId) returns (ListPlacementTaskResp) {}
+  rpc DiffStandaloneConfig(DiffReq) returns (DiffStandaloneConfigResp) {}
+  rpc PutConfigGroup(NewConfigGroup) returns (ConfigGroup) {}
+  rpc GetConfigGroup(ConfigId) returns (ConfigGroup) {}
+  rpc ListConfigGroup(ListConfigGroupReq) returns (ListConfigGroupResp) {}
+  rpc DeleteConfigGroup(ConfigId) returns (ConfigGroup) {}
+  rpc PlaceConfigGroup(PlaceReq) returns (PlaceResp) {}
+  rpc ListPlacementTaskByConfigGroup(ConfigId) returns (ListPlacementTaskResp) {}
+  rpc DiffConfigGroup(DiffReq) returns (DiffConfigGroupResp) {}
 }
 
-message PutConfigGroupReq {
-  ConfigGroup group = 1;
+message ListStandaloneConfigReq {
+  string organization = 1;
 }
 
-message PutConfigGroupResp {
-  ConfigGroup group = 1;
+message ListStandaloneConfigResp {
+  repeated StandaloneConfig configurations = 1;
 }
 
-message ApplyConfigGroupReq {
-  string groupName = 1;
-  string orgId = 2;
-  int32 version = 3;
-  string namespace = 4;
-  repeated Selector query = 5;
+message DiffReq {
+  ConfigId reference = 1;
+  ConfigId diff = 2;
 }
 
-message ApplyConfigGroupResp {
+message DiffStandaloneConfigResp {
+  repeated Diff diffs = 1;
+}
 
+message ListConfigGroupReq {
+  string organization = 1;
+}
+
+message ListConfigGroupResp {
+  repeated ConfigGroup groups = 1;
+}
+
+message DiffConfigGroupResp {
+  map<string, Diffs> diffs = 1;
+}
+
+message PlaceReq {
+  ConfigId config = 1;
+  string namespace = 2;
+  repeated Selector query = 3;
+}
+
+message PlaceResp {
+  repeated PlacementTask tasks = 1;
+}
+
+message ListPlacementTaskResp {
+  repeated PlacementTask tasks = 1;
 }

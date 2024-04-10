@@ -1,15 +1,15 @@
 package startup
 
 import (
+	quasarapi "github.com/c12s/quasar/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	apolloapi "iam-service/proto1"
 )
 
-func newApolloClient(address string) (apolloapi.AuthServiceClient, error) {
+func newQuasarClient(address string) (quasarapi.ConfigSchemaServiceClient, error) {
 	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
-	return apolloapi.NewAuthServiceClient(conn), nil
+	return quasarapi.NewConfigSchemaServiceClient(conn), nil
 }

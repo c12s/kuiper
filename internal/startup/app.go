@@ -3,35 +3,27 @@ package startup
 import (
 	"context"
 	"errors"
-	"github.com/c12s/kuiper/internal/services"
-	apolloapi "iam-service/proto1"
 	"log"
 	"net"
-	"sync"
+	"net/http"
+	"time"
+
+	"github.com/c12s/kuiper/internal/services"
+	"github.com/c12s/kuiper/internal/store"
+	"github.com/gorilla/mux"
 
 	"github.com/c12s/kuiper/internal/configs"
 	"github.com/c12s/kuiper/internal/servers"
 	"github.com/c12s/kuiper/pkg/api"
-	"github.com/c12s/kuiper/pkg/client/agent_queue"
-	magnetarapi "github.com/c12s/magnetar/pkg/api"
-	oortapi "github.com/c12s/oort/pkg/api"
-	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 type app struct {
-	config                    *configs.Config
-	grpcServer                *grpc.Server
-	kuiperGrpcServer          api.KuiperServer
-	evaluatorClient           oortapi.OortEvaluatorClient
-	administratorClient       *oortapi.AdministrationAsyncClient
-	magnetarClient            magnetarapi.MagnetarClient
-	agentQueueClient          agent_queue.AgentQueueClient
-	apolloClient              apolloapi.AuthServiceClient
-	authzService              services.AuthZService
-	shutdownProcesses         []func()
-	gracefulShutdownProcesses []func(wg *sync.WaitGroup)
+	config            *configs.Config
+	grpcServer        *grpc.Server
+	taskWebhooks      *http.Server
+	shutdownProcesses []func()
 }
 
 func NewAppWithConfig(config *configs.Config) (*app, error) {
@@ -39,135 +31,65 @@ func NewAppWithConfig(config *configs.Config) (*app, error) {
 		return nil, errors.New("config is nil")
 	}
 	return &app{
-		config:                    config,
-		shutdownProcesses:         make([]func(), 0),
-		gracefulShutdownProcesses: make([]func(wg *sync.WaitGroup), 0),
+		config:            config,
+		shutdownProcesses: make([]func(), 0),
 	}, nil
 }
 
-func (a *app) Start() error {
-	a.init()
-	return a.startGrpcServer()
-}
-
-func (a *app) GracefulStop(ctx context.Context) {
-	// call all shutdown processes after a timeout or graceful shutdown processes completion
-	defer a.shutdown()
-
-	// wait for all graceful shutdown processes to complete
-	wg := &sync.WaitGroup{}
-	wg.Add(len(a.gracefulShutdownProcesses))
-
-	for _, gracefulShutdownProcess := range a.gracefulShutdownProcesses {
-		go gracefulShutdownProcess(wg)
-	}
-
-	// notify when graceful shutdown processes are done
-	gracefulShutdownDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		gracefulShutdownDone <- struct{}{}
-	}()
-
-	// wait for graceful shutdown processes to complete or for ctx timeout
-	select {
-	case <-ctx.Done():
-		log.Println("ctx timeout ... shutting down")
-	case <-gracefulShutdownDone:
-		log.Println("app gracefully stopped")
-	}
-}
-
 func (a *app) init() {
-	natsConn, err := NewNatsConn(a.config.NatsAddress())
+	etcdConn, err := NewEtcdConn(a.config.EtcdAddress())
 	if err != nil {
 		log.Fatalln(err)
 	}
 	a.shutdownProcesses = append(a.shutdownProcesses, func() {
-		log.Println("closing nats conn")
-		natsConn.Close()
+		log.Println("closing etcd conn")
+		etcdConn.Close()
 	})
 
-	a.initMagnetarClient()
-	a.initAgentQueueClient()
-	a.initAdministratorClient()
-	a.initEvaluatorClient()
-	a.initApolloClient()
-	a.initAuthZService()
-	a.initKuiperGrpcServer(natsConn)
-	a.initGrpcServer()
-}
-
-func (a *app) initGrpcServer() {
-	if a.kuiperGrpcServer == nil {
-		log.Fatalln("kuiper grpc server is nil")
+	magnetarClient, err := newMagnetarClient(a.config.MagnetarAddress())
+	if err != nil {
+		log.Fatalln(err)
 	}
-	s := grpc.NewServer(grpc.UnaryInterceptor(servers.GetAuthInterceptor(a.apolloClient)))
-	api.RegisterKuiperServer(s, a.kuiperGrpcServer)
+
+	quasarClient, err := newQuasarClient(a.config.QuasarAddress())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	agentQueueClient, err := newAgentQueueClient(a.config.AgentQueueAddress())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	administratorClient, err := newOortAdministratorClient(a.config.NatsAddress())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	authzService := services.NewAuthZService(a.config.TokenKey())
+
+	standaloneConfigStore := store.NewStandaloneConfigEtcdStore(etcdConn)
+	configGroupStore := store.NewConfigGroupEtcdStore(etcdConn)
+	placementStore := store.NewPlacementEtcdStore(etcdConn)
+
+	placementService := services.NewPlacementStore(magnetarClient, agentQueueClient, administratorClient, authzService, placementStore, a.config.WebhookUrl())
+	standaloneConfigService := services.NewStandaloneConfigService(administratorClient, authzService, standaloneConfigStore, placementService, quasarClient)
+	configGroupService := services.NewConfigGroupService(administratorClient, authzService, configGroupStore, placementService, quasarClient)
+
+	kuiperGrpcServer := servers.NewKuiperServer(standaloneConfigService, configGroupService)
+	s := grpc.NewServer(grpc.UnaryInterceptor(servers.GetAuthInterceptor()))
+	api.RegisterKuiperServer(s, kuiperGrpcServer)
 	reflection.Register(s)
 	a.grpcServer = s
-}
 
-func (a *app) initKuiperGrpcServer(conn *nats.Conn) {
-	if a.magnetarClient == nil {
-		log.Fatalln("magnetar client is nil")
+	webhooks := servers.NewTaskWebshooks(placementService)
+	router := mux.NewRouter()
+	router.HandleFunc("/standalone", webhooks.UpdateStandaloneConfigTaskStatus).Methods("POST")
+	router.HandleFunc("/groups", webhooks.UpdateConfigGroupTaskStatus).Methods("POST")
+	a.taskWebhooks = &http.Server{
+		Addr:    a.config.WebhooksAddress(),
+		Handler: router,
 	}
-	if a.agentQueueClient == nil {
-		log.Fatalln("blackhole client is nil")
-	}
-	if a.evaluatorClient == nil {
-		log.Fatalln("evaluator client is nil")
-	}
-	if a.administratorClient == nil {
-		log.Fatalln("administrator client is nil")
-	}
-	a.kuiperGrpcServer = servers.NewKuiperServer(conn, a.magnetarClient, a.evaluatorClient, a.administratorClient, a.agentQueueClient, a.authzService)
-}
-
-func (a *app) initEvaluatorClient() {
-	client, err := newOortEvaluatorClient(a.config.OortAddress())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	a.evaluatorClient = client
-}
-
-func (a *app) initAdministratorClient() {
-	client, err := newOortAdministratorClient(a.config.NatsAddress())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	a.administratorClient = client
-}
-
-func (a *app) initMagnetarClient() {
-	client, err := newMagnetarClient(a.config.MagnetarAddress())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	a.magnetarClient = client
-}
-
-func (a *app) initAgentQueueClient() {
-	client, err := newAgentQueueClient(a.config.AgentQueueAddress())
-	log.Printf("AgentQueue Address %s\n", a.config.AgentQueueAddress())
-	log.Printf("%+v\n", client)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	a.agentQueueClient = client
-}
-
-func (a *app) initApolloClient() {
-	client, err := newApolloClient(a.config.ApolloAddress())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	a.apolloClient = client
-}
-
-func (a *app) initAuthZService() {
-	a.authzService = services.NewAuthZService(a.config.TokenKey())
 }
 
 func (a *app) startGrpcServer() error {
@@ -181,16 +103,29 @@ func (a *app) startGrpcServer() error {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
-	a.gracefulShutdownProcesses = append(a.gracefulShutdownProcesses, func(wg *sync.WaitGroup) {
-		a.grpcServer.GracefulStop()
-		log.Println("grpc server gracefully stopped")
-		wg.Done()
-	})
 	return nil
 }
 
-func (a *app) shutdown() {
-	for _, shutdownProcess := range a.shutdownProcesses {
-		shutdownProcess()
+func (a *app) startWebhooks() {
+	err := a.taskWebhooks.ListenAndServe()
+	log.Println(err)
+}
+
+func (a *app) Start() error {
+	a.init()
+	go a.startWebhooks()
+	return a.startGrpcServer()
+}
+
+func (a *app) GracefulStop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err := a.taskWebhooks.Shutdown(ctx)
+	if err != nil {
+		log.Println(err)
+	}
+	a.grpcServer.GracefulStop()
+	for _, shudownProcess := range a.shutdownProcesses {
+		shudownProcess()
 	}
 }

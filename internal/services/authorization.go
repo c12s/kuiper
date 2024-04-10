@@ -3,20 +3,37 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
 )
+
+const (
+	PermConfigGet = "config.get"
+	PermConfigPut = "config.put"
+	PermNsPut     = "namespace.putconfig"
+)
+
+const (
+	OortResOrg       = "org"
+	OortResConfig    = "config"
+	OortResNamespace = "namespace"
+)
+
+func OortConfigId(configType, org, name, version string) string {
+	return fmt.Sprintf("%s/%s/%s/%s", configType, org, name, version)
+}
 
 type AuthZService struct {
 	key string
 }
 
-func NewAuthZService(key string) AuthZService {
-	return AuthZService{key: key}
+func NewAuthZService(key string) *AuthZService {
+	return &AuthZService{key: key}
 }
 
-func (s AuthZService) Authorize(ctx context.Context, permName string, objKind string, objId string) bool {
+func (s *AuthZService) Authorize(ctx context.Context, permName string, objKind string, objId string) bool {
 	tokenString, ok := ctx.Value("authz-token").(string)
 	if !ok {
 		log.Println("no token provided")

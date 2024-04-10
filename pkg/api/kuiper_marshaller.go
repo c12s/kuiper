@@ -1,8 +1,6 @@
 package api
 
-import (
-	"github.com/golang/protobuf/proto"
-)
+import "google.golang.org/protobuf/proto"
 
 func (x *ApplyConfigCommand) Marshal() ([]byte, error) {
 	return proto.Marshal(x)

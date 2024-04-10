@@ -2,11 +2,8 @@ package servers
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	apolloapi "iam-service/proto1"
-	"log"
 
+	"github.com/c12s/kuiper/internal/domain"
 	"github.com/c12s/kuiper/internal/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,205 +11,333 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/c12s/kuiper/pkg/api"
-	"github.com/c12s/kuiper/pkg/client/agent_queue"
-	magnetarapi "github.com/c12s/magnetar/pkg/api"
-	oortapi "github.com/c12s/oort/pkg/api"
-	"github.com/golang/protobuf/proto"
-	"github.com/nats-io/nats.go"
-	"golang.org/x/exp/slices"
+	quasarapi "github.com/c12s/quasar/proto"
 )
 
 type KuiperGrpcServer struct {
 	api.UnimplementedKuiperServer
-	configs map[string]*api.ConfigGroup
-	// kojim cvorovima su dodeljene koje konfiguracije
-	nodeConfigs map[string][]string
-	// kojim ns-ovima su dodeljene koje konfiguracije
-	nsConfigs        map[string][]string
-	conn             *nats.Conn
-	magnetar         magnetarapi.MagnetarClient
-	agentQueueClient agent_queue.AgentQueueClient
-	administrator    *oortapi.AdministrationAsyncClient
-	authorizer       services.AuthZService
+	standalone *services.StandaloneConfigService
+	groups     *services.ConfigGroupService
 }
 
-func NewKuiperServer(conn *nats.Conn, magnetar magnetarapi.MagnetarClient, evaluator oortapi.OortEvaluatorClient, administrator *oortapi.AdministrationAsyncClient, agentQueueClient agent_queue.AgentQueueClient, authorizer services.AuthZService) api.KuiperServer {
+func NewKuiperServer(standalone *services.StandaloneConfigService, groups *services.ConfigGroupService) api.KuiperServer {
 	return &KuiperGrpcServer{
-		configs:          make(map[string]*api.ConfigGroup),
-		nodeConfigs:      make(map[string][]string),
-		nsConfigs:        make(map[string][]string),
-		conn:             conn,
-		magnetar:         magnetar,
-		agentQueueClient: agentQueueClient,
-		administrator:    administrator,
-		authorizer:       authorizer,
+		standalone: standalone,
+		groups:     groups,
 	}
 }
 
-func (k KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.PutConfigGroupReq) (*api.PutConfigGroupResp, error) {
-	if !k.authorizer.Authorize(ctx, "config.put", "org", req.Group.OrgId) {
-		return nil, status.Error(codes.PermissionDenied, "unauthorized")
-	}
-	key := groupId(req.Group)
-	_, ok := k.configs[key]
-	if ok {
-		return nil, errors.New("config group version already exists")
-	}
-	if req.Group.Version > 1 {
-		prevGroup := proto.Clone(req.Group).(*api.ConfigGroup)
-		prevGroup.Version = req.Group.Version - 1
-		prevKey := groupId(prevGroup)
-		_, ok := k.configs[prevKey]
-		if !ok {
-			return nil, errors.New("previous config version not found")
+func (s *KuiperGrpcServer) PutStandaloneConfig(ctx context.Context, req *api.NewStandaloneConfig) (*api.StandaloneConfig, error) {
+	paramSet := mapProtoParamSet(req.Name, req.ParamSet)
+	config := domain.NewStandaloneConfig(domain.Org(req.Organization), req.Version, *paramSet)
+	var schema *quasarapi.ConfigSchemaDetails
+	if req.Schema != nil {
+		schema = &quasarapi.ConfigSchemaDetails{
+			Organization: req.Organization,
+			SchemaName:   req.Schema.Name,
+			Version:      req.Schema.Version,
 		}
 	}
-	k.configs[key] = req.Group
-	log.Printf("NEW CONFIGS %v\n", k.configs)
-	// javi oort-u da je nova config dodata u org
-	err := k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
-		From: &oortapi.Resource{
-			Id:   req.Group.OrgId,
-			Kind: "org",
-		},
-		To: &oortapi.Resource{
-			Id:   key,
-			Kind: "config",
-		},
-	}, func(resp *oortapi.AdministrationAsyncResp) {
-		log.Println(resp.Error)
-	})
-	if err != nil {
-		log.Println(err)
-	}
-	return &api.PutConfigGroupResp{
-		Group: req.Group,
-	}, nil
-}
 
-func (k KuiperGrpcServer) ApplyConfigGroup(ctx context.Context, req *api.ApplyConfigGroupReq) (*api.ApplyConfigGroupResp, error) {
-	group := &api.ConfigGroup{
-		Name:    req.GroupName,
-		OrgId:   req.OrgId,
-		Version: req.Version,
-	}
-	groupId := groupId(group)
-	log.Printf("GROUP IF %s\n", groupId)
-	// authorize - da li sub sme da pristupi konfiguraciji
-	if !k.authorizer.Authorize(ctx, "config.get", "config", groupId) {
-		return nil, status.Error(codes.PermissionDenied, "unauthorized - config.get")
-	}
-	// check if config exists
-	group, ok := k.configs[groupId]
-	if !ok {
-		return nil, errors.New("config not found")
-	}
-	// authorize - da li sme da menja namespace
-	if !k.authorizer.Authorize(ctx, "namespace.putconfig", "namespace", req.Namespace) {
-		return nil, status.Error(codes.PermissionDenied, "unauthorized - namespace.putconfig")
-	}
-	// todo: check if namespace exists
-	if !slices.Contains(k.nsConfigs[req.Namespace], groupId) {
-		k.nsConfigs[req.Namespace] = append(k.nodeConfigs[req.Namespace], groupId)
-	}
-
-	err := k.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
-		From: &oortapi.Resource{
-			Id:   req.Namespace,
-			Kind: "namespace",
-		},
-		To: &oortapi.Resource{
-			Id:   groupId,
-			Kind: "config",
-		},
-	}, func(resp *oortapi.AdministrationAsyncResp) {
-		log.Println(resp.Error)
-	})
-	if err != nil {
-		log.Println(err)
-	}
-
-	// query nodes
-	queryReq := &magnetarapi.QueryOrgOwnedNodesReq{
-		Org: req.OrgId,
-	}
-	// mora rucno da se kopira jedan po jedan selektor
-	// todo: izmeni ovo ako je ikako moguce
-	query := make([]*magnetarapi.Selector, 0)
-	for _, selector := range req.Query {
-		s := copySelector(selector)
-		query = append(query, &s)
-	}
-	queryReq.Query = query
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		log.Println("no metadata in ctx when sending req to magnetar")
-	} else {
-		ctx = metadata.NewOutgoingContext(ctx, md)
-	}
-	queryResp, err := k.magnetar.QueryOrgOwnedNodes(ctx, queryReq)
-	log.Printf("Query Resp %+v\n", queryResp)
-	if err != nil {
+	config, err := s.standalone.Put(ctx, config, schema)
+	if err := mapError(err); err != nil {
 		return nil, err
 	}
-	// send config to each node
-	cmd := api.ApplyConfigCommand{
-		Id:      groupId,
-		Configs: group.Configs,
+	resp := &api.StandaloneConfig{
+		Organization: string(config.Org()),
+		Name:         config.Name(),
+		Version:      config.Version(),
+		CreatedAt:    config.CreatedAtUTC().String(),
+		ParamSet:     mapParamSet(config.ParamSet()),
 	}
-	cmdMarshalled, err := cmd.Marshal()
+	return resp, nil
+}
 
-	if err != nil {
-		log.Println(err)
+func (s *KuiperGrpcServer) GetStandaloneConfig(ctx context.Context, req *api.ConfigId) (*api.StandaloneConfig, error) {
+	config, err := s.standalone.Get(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.StandaloneConfig{
+		Organization: string(config.Org()),
+		Name:         config.Name(),
+		Version:      config.Version(),
+		CreatedAt:    config.CreatedAtUTC().String(),
+		ParamSet:     mapParamSet(config.ParamSet()),
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) ListStandaloneConfig(ctx context.Context, req *api.ListStandaloneConfigReq) (*api.ListStandaloneConfigResp, error) {
+	configs, err := s.standalone.List(ctx, domain.Org(req.Organization))
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.ListStandaloneConfigResp{
+		Configurations: make([]*api.StandaloneConfig, 0),
+	}
+	for _, config := range configs {
+		configProto := &api.StandaloneConfig{
+			Organization: string(config.Org()),
+			Name:         config.Name(),
+			Version:      config.Version(),
+			CreatedAt:    config.CreatedAtUTC().String(),
+			ParamSet:     mapParamSet(config.ParamSet()),
+		}
+		resp.Configurations = append(resp.Configurations, configProto)
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) DeleteStandaloneConfig(ctx context.Context, req *api.ConfigId) (*api.StandaloneConfig, error) {
+	config, err := s.standalone.Delete(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.StandaloneConfig{
+		Organization: string(config.Org()),
+		Name:         config.Name(),
+		Version:      config.Version(),
+		CreatedAt:    config.CreatedAtUTC().String(),
+		ParamSet:     mapParamSet(config.ParamSet()),
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) DiffStandaloneConfig(ctx context.Context, req *api.DiffReq) (*api.DiffStandaloneConfigResp, error) {
+	diffs, err := s.standalone.Diff(ctx, domain.Org(req.Reference.Organization), req.Reference.Name, req.Reference.Version, domain.Org(req.Diff.Organization), req.Diff.Name, req.Diff.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.DiffStandaloneConfigResp{
+		Diffs: make([]*api.Diff, 0),
+	}
+	for _, diff := range diffs {
+		resp.Diffs = append(resp.Diffs, &api.Diff{Type: string(diff.Type()), Diff: diff.Diff()})
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) PlaceStandaloneConfig(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
+	tasks, err := s.standalone.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Query)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.PlaceResp{
+		Tasks: mapTasks(tasks),
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) ListPlacementTaskByStandaloneConfig(ctx context.Context, req *api.ConfigId) (*api.ListPlacementTaskResp, error) {
+	tasks, err := s.standalone.ListPlacementTasks(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.ListPlacementTaskResp{
+		Tasks: mapTasks(tasks),
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.NewConfigGroup) (*api.ConfigGroup, error) {
+	paramSets := mapProtoParamSets(req.ParamSets)
+	config := domain.NewConfigGroup(domain.Org(req.Organization), req.Name, req.Version, paramSets)
+	var schema *quasarapi.ConfigSchemaDetails
+	if req.Schema != nil {
+		schema = &quasarapi.ConfigSchemaDetails{
+			Organization: req.Organization,
+			SchemaName:   req.Schema.Name,
+			Version:      req.Schema.Version,
+		}
+	}
+
+	config, err := s.groups.Put(ctx, config, schema)
+	if err := mapError(err); err != nil {
 		return nil, err
 	}
 
-	for _, node := range queryResp.Nodes {
-		log.Printf("Inside with node %+v\n", node)
-		if slices.Contains(k.nodeConfigs[node.Id], groupId) {
-			log.Printf("Skipping node %s as configuration as already present.", node.Id)
-			continue
-		}
-
-		err = deseminateConfig(ctx, node.Id, cmdMarshalled, k.agentQueueClient)
-		if err != nil {
-			log.Println(err)
-		} else {
-			k.nodeConfigs[node.Id] = append(k.nodeConfigs[node.Id], groupId)
-		}
+	resp := &api.ConfigGroup{
+		Organization: string(config.Org()),
+		Name:         config.Name(),
+		Version:      config.Version(),
+		CreatedAt:    config.CreatedAtUTC().String(),
+		ParamSets:    mapParamSets(config.ParamSets()),
 	}
-	return &api.ApplyConfigGroupResp{}, nil
+	return resp, nil
 }
 
-func deseminateConfig(ctx context.Context, nodeId string, cmd []byte, agentQueueClient agent_queue.AgentQueueClient) error {
-	log.Printf("Deseminating to node %s", nodeId)
-	_, err := agentQueueClient.DeseminateConfig(ctx, &agent_queue.DeseminateConfigRequest{
-		NodeId: nodeId,
-		Config: cmd,
-	})
-
-	return err
-}
-
-func groupId(group *api.ConfigGroup) string {
-	return fmt.Sprintf("%s/%s/v%d", group.OrgId, group.Name, group.Version)
-}
-
-func copySelector(selector *magnetarapi.Selector) magnetarapi.Selector {
-	return magnetarapi.Selector{
-		LabelKey: selector.LabelKey,
-		ShouldBe: selector.ShouldBe,
-		Value:    selector.Value,
+func (s *KuiperGrpcServer) GetConfigGroup(ctx context.Context, req *api.ConfigId) (*api.ConfigGroup, error) {
+	config, err := s.groups.Get(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
 	}
+	resp := &api.ConfigGroup{
+		Organization: string(config.Org()),
+		Name:         config.Name(),
+		Version:      config.Version(),
+		CreatedAt:    config.CreatedAtUTC().String(),
+		ParamSets:    mapParamSets(config.ParamSets()),
+	}
+	return resp, nil
 }
 
-func GetAuthInterceptor(apollo apolloapi.AuthServiceClient) func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (s *KuiperGrpcServer) ListConfigGroup(ctx context.Context, req *api.ListConfigGroupReq) (*api.ListConfigGroupResp, error) {
+	configs, err := s.groups.List(ctx, domain.Org(req.Organization))
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.ListConfigGroupResp{
+		Groups: make([]*api.ConfigGroup, 0),
+	}
+	for _, config := range configs {
+		configProto := &api.ConfigGroup{
+			Organization: string(config.Org()),
+			Name:         config.Name(),
+			Version:      config.Version(),
+			CreatedAt:    config.CreatedAtUTC().String(),
+			ParamSets:    mapParamSets(config.ParamSets()),
+		}
+		resp.Groups = append(resp.Groups, configProto)
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) DeleteConfigGroup(ctx context.Context, req *api.ConfigId) (*api.ConfigGroup, error) {
+	config, err := s.groups.Delete(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.ConfigGroup{
+		Organization: string(config.Org()),
+		Name:         config.Name(),
+		Version:      config.Version(),
+		CreatedAt:    config.CreatedAtUTC().String(),
+		ParamSets:    mapParamSets(config.ParamSets()),
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) DiffConfigGroup(ctx context.Context, req *api.DiffReq) (*api.DiffConfigGroupResp, error) {
+	diffsByConfig, err := s.groups.Diff(ctx, domain.Org(req.Reference.Organization), req.Reference.Name, req.Reference.Version, domain.Org(req.Diff.Organization), req.Diff.Name, req.Diff.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.DiffConfigGroupResp{
+		Diffs: make(map[string]*api.Diffs),
+	}
+	for config, diffs := range diffsByConfig {
+		diffsProto := &api.Diffs{
+			Diffs: make([]*api.Diff, 0),
+		}
+		for _, diff := range diffs {
+			diffsProto.Diffs = append(diffsProto.Diffs, &api.Diff{Type: string(diff.Type()), Diff: diff.Diff()})
+		}
+		resp.Diffs[config] = diffsProto
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) PlaceConfigGroup(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
+	tasks, err := s.groups.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Query)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.PlaceResp{
+		Tasks: mapTasks(tasks),
+	}
+	return resp, nil
+}
+
+func (s *KuiperGrpcServer) ListPlacementTaskByConfigGroup(ctx context.Context, req *api.ConfigId) (*api.ListPlacementTaskResp, error) {
+	tasks, err := s.groups.ListPlacementTasks(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	if err := mapError(err); err != nil {
+		return nil, err
+	}
+	resp := &api.ListPlacementTaskResp{
+		Tasks: mapTasks(tasks),
+	}
+	return resp, nil
+}
+
+func GetAuthInterceptor() func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if ok && len(md.Get("authz-token")) > 0 {
 			ctx = context.WithValue(ctx, "authz-token", md.Get("authz-token")[0])
 		}
-		// Calls the handler
 		return handler(ctx, req)
 	}
+}
+
+func mapError(err *domain.Error) error {
+	if err == nil {
+		return nil
+	}
+	switch err.ErrType() {
+	case domain.ErrTypeDb:
+		return status.Error(codes.Internal, err.Message())
+	case domain.ErrTypeMarshalSS:
+		return status.Error(codes.Internal, err.Message())
+	case domain.ErrTypeNotFound:
+		return status.Error(codes.NotFound, err.Message())
+	case domain.ErrTypeVersionExists:
+		return status.Error(codes.AlreadyExists, err.Message())
+	case domain.ErrTypeUnauthorized:
+		return status.Error(codes.PermissionDenied, err.Message())
+	case domain.ErrTypeInternal:
+		return status.Error(codes.Internal, err.Message())
+	case domain.ErrTypeSchemaInvalid:
+		return status.Error(codes.InvalidArgument, err.Message())
+	default:
+		return status.Error(codes.Unknown, err.Message())
+	}
+}
+
+func mapProtoParamSet(name string, params []*api.Param) *domain.NamedParamSet {
+	paramSet := make(map[string]string)
+	for _, param := range params {
+		paramSet[param.Key] = param.Value
+	}
+	return domain.NewParamSet(name, paramSet)
+}
+
+func mapProtoParamSets(params []*api.NamedParamSet) []domain.NamedParamSet {
+	paramSets := make([]domain.NamedParamSet, 0)
+	for _, paramSet := range params {
+		paramSets = append(paramSets, *mapProtoParamSet(paramSet.Name, paramSet.ParamSet))
+	}
+	return paramSets
+}
+
+func mapParamSet(params map[string]string) []*api.Param {
+	paramSet := make([]*api.Param, 0)
+	for key, value := range params {
+		paramSet = append(paramSet, &api.Param{Key: key, Value: value})
+	}
+	return paramSet
+}
+
+func mapParamSets(paramSets []domain.NamedParamSet) []*api.NamedParamSet {
+	protoParamSets := make([]*api.NamedParamSet, 0)
+	for _, paramSet := range paramSets {
+		params := mapParamSet(paramSet.ParamSet())
+		protoParamSets = append(protoParamSets, &api.NamedParamSet{Name: paramSet.Name(), ParamSet: params})
+	}
+	return protoParamSets
+}
+
+func mapTasks(tasks []domain.PlacementTask) []*api.PlacementTask {
+	protoTasks := make([]*api.PlacementTask, 0)
+	for _, task := range tasks {
+		protoTasks = append(protoTasks, &api.PlacementTask{
+			Id:         task.Id(),
+			Node:       string(task.Node()),
+			Namespace:  string(task.Namespace()),
+			Status:     task.Status().String(),
+			AcceptedAt: task.AcceptedAtUTC().String(),
+			ResolvedAt: task.ResolveddAtUTC().String(),
+		})
+	}
+	return protoTasks
 }

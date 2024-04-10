@@ -9,6 +9,7 @@ COPY ./kuiper/go.mod ./kuiper/go.sum ./
 
 # Copy the local dependency
 COPY ./magnetar ../magnetar
+COPY ./quasar ../quasar
 COPY ./oort ../oort
 COPY ./iam-service ../iam-service
 

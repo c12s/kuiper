@@ -8,9 +8,12 @@ type Config struct {
 	natsAddress       string
 	magnetarAddress   string
 	agentQueueAddress string
+	quasarAddress     string
 	oortAddress       string
-	apolloAddress     string
+	etcdAddress       string
 	serverAddress     string
+	webhooksAddress   string
+	webhookUrl        string
 	tokenKey          string
 }
 
@@ -30,12 +33,24 @@ func (c *Config) OortAddress() string {
 	return c.oortAddress
 }
 
-func (c *Config) ApolloAddress() string {
-	return c.apolloAddress
+func (c *Config) QuasarAddress() string {
+	return c.quasarAddress
+}
+
+func (c *Config) EtcdAddress() string {
+	return c.etcdAddress
 }
 
 func (c *Config) ServerAddress() string {
 	return c.serverAddress
+}
+
+func (c *Config) WebhooksAddress() string {
+	return c.webhooksAddress
+}
+
+func (c *Config) WebhookUrl() string {
+	return c.webhookUrl
 }
 
 func (c *Config) TokenKey() string {
@@ -47,9 +62,12 @@ func NewFromEnv() (*Config, error) {
 		natsAddress:       os.Getenv("NATS_ADDRESS"),
 		magnetarAddress:   os.Getenv("MAGNETAR_ADDRESS"),
 		agentQueueAddress: os.Getenv("AGENT_QUEUE_ADDRESS"),
+		quasarAddress:     os.Getenv("QUASAR_ADDRESS"),
 		oortAddress:       os.Getenv("OORT_ADDRESS"),
-		apolloAddress:     os.Getenv("APOLLO_ADDRESS"),
+		etcdAddress:       os.Getenv("ETCD_ADDRESS"),
 		serverAddress:     os.Getenv("KUIPER_ADDRESS"),
+		webhooksAddress:   os.Getenv("WEBHOOK_ADDRESS"),
+		webhookUrl:        os.Getenv("WEBHOOK_URL"),
 		tokenKey:          os.Getenv("SECRET_KEY"),
 	}, nil
 }
