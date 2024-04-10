@@ -11,6 +11,7 @@ import (
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
 	quasarapi "github.com/c12s/quasar/proto"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 )
@@ -49,6 +50,12 @@ func (s *ConfigGroupService) Put(ctx context.Context, config *domain.ConfigGroup
 		if err != nil {
 			return nil, domain.NewError(domain.ErrTypeMarshalSS, err.Error())
 		}
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			log.Println("no metadata in ctx when sending req to magnetar")
+		} else {
+			ctx = metadata.NewOutgoingContext(ctx, md)
+		}
 		resp, err := s.quasar.ValidateConfiguration(ctx, &quasarapi.ValidateConfigurationRequest{
 			SchemaDetails: schema,
 			Configuration: string(yamlBytes),
@@ -60,7 +67,7 @@ func (s *ConfigGroupService) Put(ctx context.Context, config *domain.ConfigGroup
 			return nil, domain.NewError(domain.ErrTypeSchemaInvalid, resp.Message)
 		}
 	}
-	
+
 	config.SetCreatedAt(time.Now())
 	err := s.store.Put(ctx, config)
 	if err != nil {
@@ -120,7 +127,7 @@ func (s *ConfigGroupService) Diff(ctx context.Context, referenceOrg domain.Org, 
 	if err != nil {
 		return nil, err
 	}
-	return reference.Diff(diff), nil
+	return diff.Diff(reference), nil
 }
 
 func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, name, version, namespace string, nodeQuery []*magnetarapi.Selector) ([]domain.PlacementTask, *domain.Error) {
