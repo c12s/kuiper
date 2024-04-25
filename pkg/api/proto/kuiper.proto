@@ -52,9 +52,14 @@ message DiffConfigGroupResp {
 }
 
 message PlaceReq {
+  message Strategy {
+    string name = 1;
+    repeated Selector query = 2;
+    int32 percentage = 3;
+  }
   ConfigId config = 1;
   string namespace = 2;
-  repeated Selector query = 3;
+  Strategy strategy = 3;
 }
 
 message PlaceResp {
