@@ -129,7 +129,6 @@ func (s *ConfigGroupService) Diff(ctx context.Context, referenceOrg domain.Org, 
 	return diff.Diff(reference), nil
 }
 
-// func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, name, version, namespace string, nodeQuery []*magnetarapi.Selector) ([]domain.PlacementTask, *domain.Error) {
 func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, name, version, namespace string, strategy *api.PlaceReq_Strategy) ([]domain.PlacementTask, *domain.Error) {
 	config, err := s.store.Get(ctx, org, name, version)
 	if err != nil {
