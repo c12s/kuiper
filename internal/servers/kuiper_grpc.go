@@ -2,6 +2,7 @@ package servers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/c12s/kuiper/internal/domain"
 	"github.com/c12s/kuiper/internal/services"
@@ -119,7 +120,7 @@ func (s *KuiperGrpcServer) DiffStandaloneConfig(ctx context.Context, req *api.Di
 }
 
 func (s *KuiperGrpcServer) PlaceStandaloneConfig(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
-	tasks, err := s.standalone.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Query)
+	tasks, err := s.standalone.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Strategy)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -239,7 +240,9 @@ func (s *KuiperGrpcServer) DiffConfigGroup(ctx context.Context, req *api.DiffReq
 }
 
 func (s *KuiperGrpcServer) PlaceConfigGroup(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
-	tasks, err := s.groups.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Query)
+	println("REQ")
+	fmt.Printf("%+v\n", req)
+	tasks, err := s.groups.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Strategy)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
