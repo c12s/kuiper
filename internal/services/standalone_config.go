@@ -8,7 +8,6 @@ import (
 
 	"github.com/c12s/kuiper/internal/domain"
 	"github.com/c12s/kuiper/pkg/api"
-	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
 	quasarapi "github.com/c12s/quasar/proto"
 	"google.golang.org/grpc/metadata"
@@ -128,12 +127,12 @@ func (s *StandaloneConfigService) Diff(ctx context.Context, referenceOrg domain.
 	return diff.Diff(reference), nil
 }
 
-func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, name, version, namespace string, nodeQuery []*magnetarapi.Selector) ([]domain.PlacementTask, *domain.Error) {
+func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, name, version, namespace string, strategy *api.PlaceReq_Strategy) ([]domain.PlacementTask, *domain.Error) {
 	config, err := s.store.Get(ctx, org, name, version)
 	if err != nil {
 		return nil, err
 	}
-	return s.placements.Place(ctx, config, namespace, nodeQuery, func(taskId string) ([]byte, *domain.Error) {
+	return s.placements.Place(ctx, config, namespace, strategy, func(taskId string) ([]byte, *domain.Error) {
 		config := &api.StandaloneConfig{
 			Organization: string(config.Org()),
 			Name:         config.Name(),
