@@ -44,6 +44,6 @@ replace github.com/c12s/magnetar => ../magnetar
 
 replace github.com/c12s/quasar => ../quasar
 
-replace iam-service => ../iam-service/iam-service
+replace apollo => ../apollo
 
 replace github.com/c12s/oort => ../oort
