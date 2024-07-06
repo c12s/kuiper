@@ -23,6 +23,7 @@ func NewConfigGroupEtcdStore(client *clientv3.Client) domain.ConfigGroupStore {
 func (s ConfigGroupEtcdStore) Put(ctx context.Context, config *domain.ConfigGroup) *domain.Error {
 	dao := ConfigGroupDAO{
 		Org:       string(config.Org()),
+		Namespace: config.Namespace(),
 		Name:      config.Name(),
 		Version:   config.Version(),
 		CreatedAt: config.CreatedAtUnixSec(),
@@ -54,11 +55,12 @@ func (s ConfigGroupEtcdStore) Put(ctx context.Context, config *domain.ConfigGrou
 	return nil
 }
 
-func (s ConfigGroupEtcdStore) Get(ctx context.Context, org domain.Org, name, version string) (*domain.ConfigGroup, *domain.Error) {
+func (s ConfigGroupEtcdStore) Get(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.ConfigGroup, *domain.Error) {
 	key := ConfigGroupDAO{
-		Org:     string(org),
-		Name:    name,
-		Version: version,
+		Org:       string(org),
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
 	}.Key()
 	resp, err := s.client.KV.Get(ctx, key)
 	if err != nil {
@@ -79,12 +81,13 @@ func (s ConfigGroupEtcdStore) Get(ctx context.Context, org domain.Org, name, ver
 		paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 	}
 
-	return domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
+	return domain.InitConfigGroup(domain.Org(dao.Org), dao.Namespace, dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
 }
 
-func (s ConfigGroupEtcdStore) List(ctx context.Context, org domain.Org) ([]*domain.ConfigGroup, *domain.Error) {
+func (s ConfigGroupEtcdStore) List(ctx context.Context, org domain.Org, namespace string) ([]*domain.ConfigGroup, *domain.Error) {
 	key := ConfigGroupDAO{
-		Org: string(org),
+		Org:       string(org),
+		Namespace: namespace,
 	}.KeyPrefixAll()
 	resp, err := s.client.KV.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
@@ -104,17 +107,18 @@ func (s ConfigGroupEtcdStore) List(ctx context.Context, org domain.Org) ([]*doma
 			paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 		}
 
-		configs = append(configs, domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets))
+		configs = append(configs, domain.InitConfigGroup(domain.Org(dao.Org), dao.Namespace, dao.Name, dao.Version, dao.CreatedAt, paramSets))
 	}
 
 	return configs, nil
 }
 
-func (s ConfigGroupEtcdStore) Delete(ctx context.Context, org domain.Org, name, version string) (*domain.ConfigGroup, *domain.Error) {
+func (s ConfigGroupEtcdStore) Delete(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.ConfigGroup, *domain.Error) {
 	key := ConfigGroupDAO{
-		Org:     string(org),
-		Name:    name,
-		Version: version,
+		Org:       string(org),
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
 	}.Key()
 	resp, err := s.client.KV.Delete(ctx, key, clientv3.WithPrevKV())
 	if err != nil {
@@ -135,11 +139,12 @@ func (s ConfigGroupEtcdStore) Delete(ctx context.Context, org domain.Org, name, 
 		paramSets = append(paramSets, *domain.NewParamSet(psDao.Name, psDao.ParamSet))
 	}
 
-	return domain.InitConfigGroup(domain.Org(dao.Org), dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
+	return domain.InitConfigGroup(domain.Org(dao.Org), dao.Namespace, dao.Name, dao.Version, dao.CreatedAt, paramSets), nil
 }
 
 type ConfigGroupDAO struct {
 	Org        string
+	Namespace  string
 	Name       string
 	Version    string
 	CreatedAt  int64
@@ -150,11 +155,11 @@ type ConfigGroupDAO struct {
 }
 
 func (dao ConfigGroupDAO) Key() string {
-	return fmt.Sprintf("groups/%s/%s/%s", dao.Org, dao.Name, dao.Version)
+	return fmt.Sprintf("groups/%s/%s/%s/%s", dao.Org, dao.Namespace, dao.Name, dao.Version)
 }
 
 func (dao ConfigGroupDAO) KeyPrefixAll() string {
-	return fmt.Sprintf("groups/%s/", dao.Org)
+	return fmt.Sprintf("groups/%s/%s/", dao.Org, dao.Namespace)
 }
 
 func (dao ConfigGroupDAO) Marshal() (string, error) {

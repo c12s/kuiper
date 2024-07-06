@@ -29,17 +29,15 @@ func (s PlacementTaskStatus) String() string {
 type PlacementTask struct {
 	id         string
 	node       Node
-	namespace  Namespace
 	status     PlacementTaskStatus
 	acceptedAt int64
 	resolvedAt int64
 }
 
-func NewPlacementTask(id string, node Node, namepsace Namespace, status PlacementTaskStatus, acceptedAt, resolvedAt int64) *PlacementTask {
+func NewPlacementTask(id string, node Node, status PlacementTaskStatus, acceptedAt, resolvedAt int64) *PlacementTask {
 	return &PlacementTask{
 		id:         id,
 		node:       node,
-		namespace:  namepsace,
 		status:     status,
 		acceptedAt: acceptedAt,
 		resolvedAt: resolvedAt,
@@ -52,10 +50,6 @@ func (p *PlacementTask) Id() string {
 
 func (p *PlacementTask) Node() Node {
 	return p.node
-}
-
-func (p *PlacementTask) Namespace() Namespace {
-	return p.namespace
 }
 
 func (p *PlacementTask) AcceptedAtUnixSec() int64 {
@@ -84,6 +78,6 @@ func (p *PlacementTask) Status() PlacementTaskStatus {
 
 type PlacementStore interface {
 	Place(ctx context.Context, config Config, req *PlacementTask) *Error
-	ListByConfig(ctx context.Context, org Org, name, version, configType string) ([]PlacementTask, *Error)
-	UpdateStatus(ctx context.Context, org Org, name, version, configType, taskId string, status PlacementTaskStatus) *Error
+	ListByConfig(ctx context.Context, org Org, namespace, name, version, configType string) ([]PlacementTask, *Error)
+	UpdateStatus(ctx context.Context, org Org, namespace, name, version, configType, taskId string, status PlacementTaskStatus) *Error
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/c12s/kuiper/internal/services"
@@ -15,7 +16,9 @@ import (
 	"github.com/c12s/kuiper/internal/configs"
 	"github.com/c12s/kuiper/internal/servers"
 	"github.com/c12s/kuiper/pkg/api"
+	meridian_api "github.com/c12s/meridian/pkg/api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -65,6 +68,11 @@ func (a *app) init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	conn, err := grpc.NewClient(os.Getenv("MERIDIAN_ADDRESS"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	meridian := meridian_api.NewMeridianClient(conn)
 
 	authzService := services.NewAuthZService(a.config.TokenKey())
 
@@ -73,7 +81,7 @@ func (a *app) init() {
 	placementStore := store.NewPlacementEtcdStore(etcdConn)
 
 	placementService := services.NewPlacementStore(magnetarClient, agentQueueClient, administratorClient, authzService, placementStore, a.config.WebhookUrl())
-	standaloneConfigService := services.NewStandaloneConfigService(administratorClient, authzService, standaloneConfigStore, placementService, quasarClient)
+	standaloneConfigService := services.NewStandaloneConfigService(administratorClient, authzService, standaloneConfigStore, placementService, quasarClient, meridian)
 	configGroupService := services.NewConfigGroupService(administratorClient, authzService, configGroupStore, placementService, quasarClient)
 
 	kuiperGrpcServer := servers.NewKuiperServer(standaloneConfigService, configGroupService)

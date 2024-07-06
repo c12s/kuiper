@@ -23,44 +23,48 @@ message NewStandaloneConfig {
   string organization = 1;
   string name = 2;
   string version = 3;
-  repeated Param paramSet = 4;
-  Schema schema = 5;
+  string namespace = 4;
+  repeated Param paramSet = 5;
+  Schema schema = 6;
 }
 
 message StandaloneConfig {
   string organization = 1;
   string name = 2;
   string version = 3;
-  string createdAt = 4;
-  repeated Param paramSet = 5;
+  string namespace = 4;
+  string createdAt = 5;
+  repeated Param paramSet = 6;
 }
 
 message NewConfigGroup {
   string organization = 1;
   string name = 2;
   string version = 3;
-  repeated NamedParamSet paramSets = 4;
-  Schema schema = 5;
+  string namespace = 4;
+  repeated NamedParamSet paramSets = 5;
+  Schema schema = 6;
 }
 
 message ConfigGroup {
   string organization = 1;
   string name = 2;
   string version = 3;
-  string createdAt = 4;
-  repeated NamedParamSet paramSets = 5;
+  string namespace = 4;
+  string createdAt = 5;
+  repeated NamedParamSet paramSets = 6;
 }
 
 message ConfigId {
   string organization = 1;
   string name = 2;
   string version = 3;
+  string namespace = 4;
 }
 
 message PlacementTask {
   string id = 1;
   string node = 2;
-  string namespace = 3;
   string status = 4;
   string acceptedAt = 5;
   string resolvedAt = 6;
@@ -78,8 +82,8 @@ message Diffs {
 message ApplyConfigCommand {
   bytes config = 1;
   string taskId = 2;
-  string namespace = 3;
-  string type = 4;
+  string type = 3;
+  string namespace = 4;
 }
 
 enum TaskStatus {
