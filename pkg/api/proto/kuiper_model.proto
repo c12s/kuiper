@@ -84,6 +84,7 @@ message ApplyConfigCommand {
   string taskId = 2;
   string type = 3;
   string namespace = 4;
+  string strategy = 5;
 }
 
 enum TaskStatus {

@@ -50,7 +50,7 @@ func (c *KuiperAsyncClient) ReceiveConfig(standaloneHandler PutStandaloneConfigH
 				log.Println(err)
 				return
 			}
-			err = standaloneHandler(config, cmd.Namespace)
+			err = standaloneHandler(config, cmd.Namespace, cmd.Strategy)
 			reply := &ApplyConfigReply{
 				Cmd: cmd,
 			}
@@ -76,7 +76,7 @@ func (c *KuiperAsyncClient) ReceiveConfig(standaloneHandler PutStandaloneConfigH
 				log.Println(err)
 				return
 			}
-			err = groupHandler(config, cmd.Namespace)
+			err = groupHandler(config, cmd.Namespace, cmd.Strategy)
 			reply := &ApplyConfigReply{
 				Cmd: cmd,
 			}
@@ -109,8 +109,8 @@ func (c *KuiperAsyncClient) GracefulStop() {
 	}
 }
 
-type PutStandaloneConfigHandler func(config *StandaloneConfig, namespace string) error
-type PutConfigGroupHandler func(config *ConfigGroup, namespace string) error
+type PutStandaloneConfigHandler func(config *StandaloneConfig, namespace, strategy string) error
+type PutConfigGroupHandler func(config *ConfigGroup, namespace, strategy string) error
 
 func Subject(nodeId string) string {
 	return fmt.Sprintf("%s.configs", nodeId)

@@ -152,6 +152,7 @@ func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, namespac
 			Namespace: namespace,
 			Config:    configMarshalled,
 			Type:      "group",
+			Strategy:  strategy.Name,
 		}
 		cmdMarshalled, err := proto.Marshal(cmd)
 		if err != nil {

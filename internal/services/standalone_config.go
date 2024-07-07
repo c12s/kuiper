@@ -161,6 +161,7 @@ func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, nam
 			Namespace: namespace,
 			Config:    configMarshalled,
 			Type:      "standalone",
+			Strategy:  strategy.Name,
 		}
 		cmdMarshalled, err := proto.Marshal(cmd)
 		if err != nil {
