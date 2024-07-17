@@ -23,6 +23,7 @@ func NewStandaloneConfigEtcdStore(client *clientv3.Client) domain.StandaloneConf
 func (s StandaloneConfigEtcdStore) Put(ctx context.Context, config *domain.StandaloneConfig) *domain.Error {
 	dao := StandaloneConfigDAO{
 		Org:       string(config.Org()),
+		Namespace: config.Namespace(),
 		Name:      config.Name(),
 		Version:   config.Version(),
 		CreatedAt: config.CreatedAtUnixSec(),
@@ -45,11 +46,12 @@ func (s StandaloneConfigEtcdStore) Put(ctx context.Context, config *domain.Stand
 	return nil
 }
 
-func (s StandaloneConfigEtcdStore) Get(ctx context.Context, org domain.Org, name, version string) (*domain.StandaloneConfig, *domain.Error) {
+func (s StandaloneConfigEtcdStore) Get(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.StandaloneConfig, *domain.Error) {
 	key := StandaloneConfigDAO{
-		Org:     string(org),
-		Name:    name,
-		Version: version,
+		Org:       string(org),
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
 	}.Key()
 	resp, err := s.client.KV.Get(ctx, key)
 	if err != nil {
@@ -66,12 +68,13 @@ func (s StandaloneConfigEtcdStore) Get(ctx context.Context, org domain.Org, name
 	}
 
 	paramSet := domain.NewParamSet(dao.Name, dao.ParamSet)
-	return domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet), nil
+	return domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Namespace, dao.Version, dao.CreatedAt, *paramSet), nil
 }
 
-func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org) ([]*domain.StandaloneConfig, *domain.Error) {
+func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org, namespace string) ([]*domain.StandaloneConfig, *domain.Error) {
 	key := StandaloneConfigDAO{
-		Org: string(org),
+		Org:       string(org),
+		Namespace: namespace,
 	}.KeyPrefixAll()
 	resp, err := s.client.KV.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
@@ -86,17 +89,18 @@ func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org) ([]
 			continue
 		}
 		paramSet := domain.NewParamSet(dao.Name, dao.ParamSet)
-		configs = append(configs, domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet))
+		configs = append(configs, domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Namespace, dao.Version, dao.CreatedAt, *paramSet))
 	}
 
 	return configs, nil
 }
 
-func (s StandaloneConfigEtcdStore) Delete(ctx context.Context, org domain.Org, name, version string) (*domain.StandaloneConfig, *domain.Error) {
+func (s StandaloneConfigEtcdStore) Delete(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.StandaloneConfig, *domain.Error) {
 	key := StandaloneConfigDAO{
-		Org:     string(org),
-		Name:    name,
-		Version: version,
+		Org:       string(org),
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
 	}.Key()
 	resp, err := s.client.KV.Delete(ctx, key, clientv3.WithPrevKV())
 	if err != nil {
@@ -113,11 +117,12 @@ func (s StandaloneConfigEtcdStore) Delete(ctx context.Context, org domain.Org, n
 	}
 
 	paramSet := domain.NewParamSet(dao.Name, dao.ParamSet)
-	return domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Version, dao.CreatedAt, *paramSet), nil
+	return domain.InitStandaloneConfig(domain.Org(dao.Org), dao.Namespace, dao.Version, dao.CreatedAt, *paramSet), nil
 }
 
 type StandaloneConfigDAO struct {
 	Org       string
+	Namespace string
 	Name      string
 	Version   string
 	CreatedAt int64
@@ -125,11 +130,11 @@ type StandaloneConfigDAO struct {
 }
 
 func (dao StandaloneConfigDAO) Key() string {
-	return fmt.Sprintf("standalone/%s/%s/%s", dao.Org, dao.Name, dao.Version)
+	return fmt.Sprintf("standalone/%s/%s/%s/%s", dao.Org, dao.Namespace, dao.Name, dao.Version)
 }
 
 func (dao StandaloneConfigDAO) KeyPrefixAll() string {
-	return fmt.Sprintf("standalone/%s/", dao.Org)
+	return fmt.Sprintf("standalone/%s/%s/", dao.Org, dao.Namespace)
 }
 
 func (dao StandaloneConfigDAO) Marshal() (string, error) {

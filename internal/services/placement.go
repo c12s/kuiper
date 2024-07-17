@@ -37,28 +37,12 @@ func NewPlacementStore(magnetar magnetarapi.MagnetarClient, aq agent_queue.Agent
 	}
 }
 
-func (s *PlacementService) Place(ctx context.Context, config domain.Config, namespace string, strategy *api.PlaceReq_Strategy, cmd func(taskId string) ([]byte, *domain.Error), webhookPath string) ([]domain.PlacementTask, *domain.Error) {
-	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(config.Type(), string(config.Org()), config.Name(), config.Version())) {
+func (s *PlacementService) Place(ctx context.Context, config domain.Config, strategy *api.PlaceReq_Strategy, cmd func(taskId string) ([]byte, *domain.Error), webhookPath string) ([]domain.PlacementTask, *domain.Error) {
+	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(config.Type(), string(config.Org()), config.Namespace(), config.Name(), config.Version())) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
-	if !s.authorizer.Authorize(ctx, PermNsPut, OortResNamespace, namespace) {
+	if !s.authorizer.Authorize(ctx, PermNsPut, OortResNamespace, fmt.Sprintf("%s/%s", config.Org(), config.Namespace())) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermNsPut))
-	}
-	// todo: check if namespace exists
-	oortErr := s.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
-		From: &oortapi.Resource{
-			Id:   namespace,
-			Kind: OortResNamespace,
-		},
-		To: &oortapi.Resource{
-			Id:   OortConfigId(config.Type(), string(config.Org()), config.Name(), config.Version()),
-			Kind: OortResConfig,
-		},
-	}, func(resp *oortapi.AdministrationAsyncResp) {
-		log.Println(resp.Error)
-	})
-	if oortErr != nil {
-		log.Println(oortErr)
 	}
 
 	var nodes []*magnetarapi.NodeStringified
@@ -81,7 +65,7 @@ func (s *PlacementService) Place(ctx context.Context, config domain.Config, name
 	for _, node := range nodes {
 		taskId := uuid.New().String()
 		acceptedTs := time.Now().Unix()
-		task := domain.NewPlacementTask(taskId, domain.Node(node.Id), domain.Namespace(namespace), domain.PlacementTaskStatusAccepted, acceptedTs, acceptedTs)
+		task := domain.NewPlacementTask(taskId, domain.Node(node.Id), domain.PlacementTaskStatusAccepted, acceptedTs, acceptedTs)
 		placeErr := s.store.Place(ctx, config, task)
 		if placeErr != nil {
 			log.Println(placeErr)
@@ -162,12 +146,12 @@ func selectRandmNodes(nodes []*magnetarapi.NodeStringified, percentage int32) []
 	return selectedNodes
 }
 
-func (s *PlacementService) List(ctx context.Context, org domain.Org, name, version, configType string) ([]domain.PlacementTask, *domain.Error) {
-	return s.store.ListByConfig(ctx, org, name, version, configType)
+func (s *PlacementService) List(ctx context.Context, org domain.Org, namespace, name, version, configType string) ([]domain.PlacementTask, *domain.Error) {
+	return s.store.ListByConfig(ctx, org, namespace, name, version, configType)
 }
 
-func (s *PlacementService) UpdateStatus(ctx context.Context, org domain.Org, name, version, configType, taskId string, status domain.PlacementTaskStatus) *domain.Error {
-	return s.store.UpdateStatus(ctx, org, name, version, configType, taskId, status)
+func (s *PlacementService) UpdateStatus(ctx context.Context, org domain.Org, namespace, name, version, configType, taskId string, status domain.PlacementTaskStatus) *domain.Error {
+	return s.store.UpdateStatus(ctx, org, namespace, name, version, configType, taskId, status)
 }
 
 func deseminateConfig(ctx context.Context, nodeId string, cmd []byte, agentQueueClient agent_queue.AgentQueueClient, whUrl string) error {

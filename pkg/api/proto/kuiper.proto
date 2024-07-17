@@ -24,6 +24,7 @@ service Kuiper {
 
 message ListStandaloneConfigReq {
   string organization = 1;
+  string namespace = 2;
 }
 
 message ListStandaloneConfigResp {
@@ -41,6 +42,7 @@ message DiffStandaloneConfigResp {
 
 message ListConfigGroupReq {
   string organization = 1;
+  string namespace = 2;
 }
 
 message ListConfigGroupResp {
@@ -58,7 +60,6 @@ message PlaceReq {
     int32 percentage = 3;
   }
   ConfigId config = 1;
-  string namespace = 2;
   Strategy strategy = 3;
 }
 

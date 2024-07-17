@@ -25,10 +25,10 @@ func (s PlacementEtcdStore) Place(ctx context.Context, config domain.Config, req
 	dao := PlacementTaskDAO{
 		Id:         req.Id(),
 		Org:        string(config.Org()),
+		Namespace:  config.Namespace(),
 		Name:       config.Name(),
 		Version:    config.Version(),
 		Node:       string(req.Node()),
-		Namespace:  string(req.Namespace()),
 		Status:     req.Status(),
 		AcceptedAt: req.AcceptedAtUnixSec(),
 		ResolvedAt: req.ResolvedAtUnixSec(),
@@ -47,11 +47,12 @@ func (s PlacementEtcdStore) Place(ctx context.Context, config domain.Config, req
 	return nil
 }
 
-func (s PlacementEtcdStore) ListByConfig(ctx context.Context, org domain.Org, name string, version, configType string) ([]domain.PlacementTask, *domain.Error) {
+func (s PlacementEtcdStore) ListByConfig(ctx context.Context, org domain.Org, namespace, name string, version, configType string) ([]domain.PlacementTask, *domain.Error) {
 	key := PlacementTaskDAO{
-		Org:     string(org),
-		Name:    name,
-		Version: version,
+		Org:       string(org),
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
 	}.KeyPrefixByConfig(configType)
 	resp, err := s.client.KV.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
@@ -65,18 +66,19 @@ func (s PlacementEtcdStore) ListByConfig(ctx context.Context, org domain.Org, na
 			log.Println(err)
 			continue
 		}
-		reqs = append(reqs, *domain.NewPlacementTask(dao.Id, domain.Node(dao.Node), domain.Namespace(dao.Namespace), dao.Status, dao.AcceptedAt, dao.ResolvedAt))
+		reqs = append(reqs, *domain.NewPlacementTask(dao.Id, domain.Node(dao.Node), dao.Status, dao.AcceptedAt, dao.ResolvedAt))
 	}
 
 	return reqs, nil
 }
 
-func (s PlacementEtcdStore) UpdateStatus(ctx context.Context, org domain.Org, name string, version string, configType string, taskId string, status domain.PlacementTaskStatus) *domain.Error {
+func (s PlacementEtcdStore) UpdateStatus(ctx context.Context, org domain.Org, namespace, name string, version string, configType string, taskId string, status domain.PlacementTaskStatus) *domain.Error {
 	key := PlacementTaskDAO{
-		Id:      taskId,
-		Org:     string(org),
-		Name:    name,
-		Version: version,
+		Id:        taskId,
+		Org:       string(org),
+		Namespace: namespace,
+		Name:      name,
+		Version:   version,
 	}.Key(configType)
 	resp, err := s.client.KV.Get(ctx, key)
 	if err != nil {
@@ -109,21 +111,21 @@ func (s PlacementEtcdStore) UpdateStatus(ctx context.Context, org domain.Org, na
 type PlacementTaskDAO struct {
 	Id         string
 	Org        string
+	Namespace  string
 	Name       string
 	Version    string
 	Node       string
-	Namespace  string
 	Status     domain.PlacementTaskStatus
 	AcceptedAt int64
 	ResolvedAt int64
 }
 
 func (dao PlacementTaskDAO) Key(configType string) string {
-	return fmt.Sprintf("placements/%s/%s/%s/%s/%s", configType, dao.Org, dao.Name, dao.Version, dao.Id)
+	return fmt.Sprintf("placements/%s/%s/%s/%s/%s/%s", configType, dao.Org, dao.Namespace, dao.Name, dao.Version, dao.Id)
 }
 
 func (dao PlacementTaskDAO) KeyPrefixByConfig(configType string) string {
-	return fmt.Sprintf("placements/%s/%s/%s/%s/", configType, dao.Org, dao.Name, dao.Version)
+	return fmt.Sprintf("placements/%s/%s/%s/%s/%s/", configType, dao.Org, dao.Namespace, dao.Name, dao.Version)
 }
 
 func (dao PlacementTaskDAO) Marshal() (string, error) {

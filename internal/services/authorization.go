@@ -21,8 +21,8 @@ const (
 	OortResNamespace = "namespace"
 )
 
-func OortConfigId(configType, org, name, version string) string {
-	return fmt.Sprintf("%s/%s/%s/%s", configType, org, name, version)
+func OortConfigId(configType, org, namespace, name, version string) string {
+	return fmt.Sprintf("%s/%s/%s/%s/%s", configType, org, namespace, name, version)
 }
 
 type AuthZService struct {

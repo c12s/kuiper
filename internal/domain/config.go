@@ -19,6 +19,7 @@ type Org string
 
 type Config interface {
 	Org() Org
+	Namespace() string
 	Name() string
 	Version() string
 	CreatedAtUnixSec() int64
@@ -28,12 +29,17 @@ type Config interface {
 
 type ConfigBase struct {
 	org       Org
+	namespace string
 	version   string
 	createdAt int64
 }
 
 func (c *ConfigBase) Org() Org {
 	return c.org
+}
+
+func (c *ConfigBase) Namespace() string {
+	return c.namespace
 }
 
 func (c *ConfigBase) Version() string {
@@ -120,10 +126,11 @@ type StandaloneConfig struct {
 	paramSet NamedParamSet
 }
 
-func InitStandaloneConfig(org Org, version string, createdAt int64, paramSet NamedParamSet) *StandaloneConfig {
+func InitStandaloneConfig(org Org, namespace, version string, createdAt int64, paramSet NamedParamSet) *StandaloneConfig {
 	return &StandaloneConfig{
 		ConfigBase: ConfigBase{
 			org:       org,
+			namespace: namespace,
 			version:   version,
 			createdAt: createdAt,
 		},
@@ -131,11 +138,12 @@ func InitStandaloneConfig(org Org, version string, createdAt int64, paramSet Nam
 	}
 }
 
-func NewStandaloneConfig(org Org, version string, paramSet NamedParamSet) *StandaloneConfig {
+func NewStandaloneConfig(org Org, namespace string, version string, paramSet NamedParamSet) *StandaloneConfig {
 	return &StandaloneConfig{
 		ConfigBase: ConfigBase{
-			org:     org,
-			version: version,
+			org:       org,
+			namespace: namespace,
+			version:   version,
 		},
 		paramSet: paramSet,
 	}
@@ -163,10 +171,11 @@ type ConfigGroup struct {
 	paramSets []NamedParamSet
 }
 
-func InitConfigGroup(org Org, name, version string, createdAt int64, paramSets []NamedParamSet) *ConfigGroup {
+func InitConfigGroup(org Org, namespace, name, version string, createdAt int64, paramSets []NamedParamSet) *ConfigGroup {
 	return &ConfigGroup{
 		ConfigBase: ConfigBase{
 			org:       org,
+			namespace: namespace,
 			version:   version,
 			createdAt: createdAt,
 		},
@@ -175,11 +184,12 @@ func InitConfigGroup(org Org, name, version string, createdAt int64, paramSets [
 	}
 }
 
-func NewConfigGroup(org Org, name, version string, paramSets []NamedParamSet) *ConfigGroup {
+func NewConfigGroup(org Org, namespace, name, version string, paramSets []NamedParamSet) *ConfigGroup {
 	return &ConfigGroup{
 		ConfigBase: ConfigBase{
-			org:     org,
-			version: version,
+			org:       org,
+			namespace: namespace,
+			version:   version,
 		},
 		name:      name,
 		paramSets: paramSets,
@@ -246,14 +256,14 @@ func (c *ConfigGroup) Type() string {
 
 type StandaloneConfigStore interface {
 	Put(ctx context.Context, config *StandaloneConfig) *Error
-	Get(ctx context.Context, org Org, name, version string) (*StandaloneConfig, *Error)
-	List(ctx context.Context, org Org) ([]*StandaloneConfig, *Error)
-	Delete(ctx context.Context, org Org, name, version string) (*StandaloneConfig, *Error)
+	Get(ctx context.Context, org Org, namespace, name, version string) (*StandaloneConfig, *Error)
+	List(ctx context.Context, org Org, namespace string) ([]*StandaloneConfig, *Error)
+	Delete(ctx context.Context, org Org, namespace, name, version string) (*StandaloneConfig, *Error)
 }
 
 type ConfigGroupStore interface {
 	Put(ctx context.Context, config *ConfigGroup) *Error
-	Get(ctx context.Context, org Org, name, version string) (*ConfigGroup, *Error)
-	List(ctx context.Context, org Org) ([]*ConfigGroup, *Error)
-	Delete(ctx context.Context, org Org, name, version string) (*ConfigGroup, *Error)
+	Get(ctx context.Context, org Org, namespace, name, version string) (*ConfigGroup, *Error)
+	List(ctx context.Context, org Org, namespace string) ([]*ConfigGroup, *Error)
+	Delete(ctx context.Context, org Org, namespace, name, version string) (*ConfigGroup, *Error)
 }

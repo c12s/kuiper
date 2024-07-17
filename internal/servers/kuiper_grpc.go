@@ -30,7 +30,7 @@ func NewKuiperServer(standalone *services.StandaloneConfigService, groups *servi
 
 func (s *KuiperGrpcServer) PutStandaloneConfig(ctx context.Context, req *api.NewStandaloneConfig) (*api.StandaloneConfig, error) {
 	paramSet := mapProtoParamSet(req.Name, req.ParamSet)
-	config := domain.NewStandaloneConfig(domain.Org(req.Organization), req.Version, *paramSet)
+	config := domain.NewStandaloneConfig(domain.Org(req.Organization), req.Namespace, req.Version, *paramSet)
 	var schema *quasarapi.ConfigSchemaDetails
 	if req.Schema != nil {
 		schema = &quasarapi.ConfigSchemaDetails{
@@ -55,12 +55,13 @@ func (s *KuiperGrpcServer) PutStandaloneConfig(ctx context.Context, req *api.New
 }
 
 func (s *KuiperGrpcServer) GetStandaloneConfig(ctx context.Context, req *api.ConfigId) (*api.StandaloneConfig, error) {
-	config, err := s.standalone.Get(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	config, err := s.standalone.Get(ctx, domain.Org(req.Organization), req.Namespace, req.Name, req.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
 	resp := &api.StandaloneConfig{
 		Organization: string(config.Org()),
+		Namespace:    config.Namespace(),
 		Name:         config.Name(),
 		Version:      config.Version(),
 		CreatedAt:    config.CreatedAtUTC().String(),
@@ -70,7 +71,7 @@ func (s *KuiperGrpcServer) GetStandaloneConfig(ctx context.Context, req *api.Con
 }
 
 func (s *KuiperGrpcServer) ListStandaloneConfig(ctx context.Context, req *api.ListStandaloneConfigReq) (*api.ListStandaloneConfigResp, error) {
-	configs, err := s.standalone.List(ctx, domain.Org(req.Organization))
+	configs, err := s.standalone.List(ctx, domain.Org(req.Organization), req.Namespace)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -80,6 +81,7 @@ func (s *KuiperGrpcServer) ListStandaloneConfig(ctx context.Context, req *api.Li
 	for _, config := range configs {
 		configProto := &api.StandaloneConfig{
 			Organization: string(config.Org()),
+			Namespace:    config.Namespace(),
 			Name:         config.Name(),
 			Version:      config.Version(),
 			CreatedAt:    config.CreatedAtUTC().String(),
@@ -91,12 +93,13 @@ func (s *KuiperGrpcServer) ListStandaloneConfig(ctx context.Context, req *api.Li
 }
 
 func (s *KuiperGrpcServer) DeleteStandaloneConfig(ctx context.Context, req *api.ConfigId) (*api.StandaloneConfig, error) {
-	config, err := s.standalone.Delete(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	config, err := s.standalone.Delete(ctx, domain.Org(req.Organization), req.Namespace, req.Name, req.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
 	resp := &api.StandaloneConfig{
 		Organization: string(config.Org()),
+		Namespace:    config.Namespace(),
 		Name:         config.Name(),
 		Version:      config.Version(),
 		CreatedAt:    config.CreatedAtUTC().String(),
@@ -106,7 +109,7 @@ func (s *KuiperGrpcServer) DeleteStandaloneConfig(ctx context.Context, req *api.
 }
 
 func (s *KuiperGrpcServer) DiffStandaloneConfig(ctx context.Context, req *api.DiffReq) (*api.DiffStandaloneConfigResp, error) {
-	diffs, err := s.standalone.Diff(ctx, domain.Org(req.Reference.Organization), req.Reference.Name, req.Reference.Version, domain.Org(req.Diff.Organization), req.Diff.Name, req.Diff.Version)
+	diffs, err := s.standalone.Diff(ctx, domain.Org(req.Reference.Organization), req.Reference.Namespace, req.Reference.Name, req.Reference.Version, domain.Org(req.Diff.Organization), req.Diff.Namespace, req.Diff.Name, req.Diff.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -120,7 +123,7 @@ func (s *KuiperGrpcServer) DiffStandaloneConfig(ctx context.Context, req *api.Di
 }
 
 func (s *KuiperGrpcServer) PlaceStandaloneConfig(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
-	tasks, err := s.standalone.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Strategy)
+	tasks, err := s.standalone.Place(ctx, domain.Org(req.Config.Organization), req.Config.Namespace, req.Config.Name, req.Config.Version, req.Strategy)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -131,7 +134,7 @@ func (s *KuiperGrpcServer) PlaceStandaloneConfig(ctx context.Context, req *api.P
 }
 
 func (s *KuiperGrpcServer) ListPlacementTaskByStandaloneConfig(ctx context.Context, req *api.ConfigId) (*api.ListPlacementTaskResp, error) {
-	tasks, err := s.standalone.ListPlacementTasks(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	tasks, err := s.standalone.ListPlacementTasks(ctx, domain.Org(req.Organization), req.Namespace, req.Name, req.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -143,11 +146,12 @@ func (s *KuiperGrpcServer) ListPlacementTaskByStandaloneConfig(ctx context.Conte
 
 func (s *KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.NewConfigGroup) (*api.ConfigGroup, error) {
 	paramSets := mapProtoParamSets(req.ParamSets)
-	config := domain.NewConfigGroup(domain.Org(req.Organization), req.Name, req.Version, paramSets)
+	config := domain.NewConfigGroup(domain.Org(req.Organization), req.Namespace, req.Name, req.Version, paramSets)
 	var schema *quasarapi.ConfigSchemaDetails
 	if req.Schema != nil {
 		schema = &quasarapi.ConfigSchemaDetails{
 			Organization: req.Organization,
+			Namespace:    req.Namespace,
 			SchemaName:   req.Schema.Name,
 			Version:      req.Schema.Version,
 		}
@@ -160,6 +164,7 @@ func (s *KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.NewConfi
 
 	resp := &api.ConfigGroup{
 		Organization: string(config.Org()),
+		Namespace:    config.Namespace(),
 		Name:         config.Name(),
 		Version:      config.Version(),
 		CreatedAt:    config.CreatedAtUTC().String(),
@@ -169,12 +174,13 @@ func (s *KuiperGrpcServer) PutConfigGroup(ctx context.Context, req *api.NewConfi
 }
 
 func (s *KuiperGrpcServer) GetConfigGroup(ctx context.Context, req *api.ConfigId) (*api.ConfigGroup, error) {
-	config, err := s.groups.Get(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	config, err := s.groups.Get(ctx, domain.Org(req.Organization), req.Namespace, req.Name, req.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
 	resp := &api.ConfigGroup{
 		Organization: string(config.Org()),
+		Namespace:    config.Namespace(),
 		Name:         config.Name(),
 		Version:      config.Version(),
 		CreatedAt:    config.CreatedAtUTC().String(),
@@ -184,7 +190,7 @@ func (s *KuiperGrpcServer) GetConfigGroup(ctx context.Context, req *api.ConfigId
 }
 
 func (s *KuiperGrpcServer) ListConfigGroup(ctx context.Context, req *api.ListConfigGroupReq) (*api.ListConfigGroupResp, error) {
-	configs, err := s.groups.List(ctx, domain.Org(req.Organization))
+	configs, err := s.groups.List(ctx, domain.Org(req.Organization), req.Namespace)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -194,6 +200,7 @@ func (s *KuiperGrpcServer) ListConfigGroup(ctx context.Context, req *api.ListCon
 	for _, config := range configs {
 		configProto := &api.ConfigGroup{
 			Organization: string(config.Org()),
+			Namespace:    config.Namespace(),
 			Name:         config.Name(),
 			Version:      config.Version(),
 			CreatedAt:    config.CreatedAtUTC().String(),
@@ -205,12 +212,13 @@ func (s *KuiperGrpcServer) ListConfigGroup(ctx context.Context, req *api.ListCon
 }
 
 func (s *KuiperGrpcServer) DeleteConfigGroup(ctx context.Context, req *api.ConfigId) (*api.ConfigGroup, error) {
-	config, err := s.groups.Delete(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	config, err := s.groups.Delete(ctx, domain.Org(req.Organization), req.Namespace, req.Name, req.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
 	resp := &api.ConfigGroup{
 		Organization: string(config.Org()),
+		Namespace:    config.Namespace(),
 		Name:         config.Name(),
 		Version:      config.Version(),
 		CreatedAt:    config.CreatedAtUTC().String(),
@@ -220,7 +228,7 @@ func (s *KuiperGrpcServer) DeleteConfigGroup(ctx context.Context, req *api.Confi
 }
 
 func (s *KuiperGrpcServer) DiffConfigGroup(ctx context.Context, req *api.DiffReq) (*api.DiffConfigGroupResp, error) {
-	diffsByConfig, err := s.groups.Diff(ctx, domain.Org(req.Reference.Organization), req.Reference.Name, req.Reference.Version, domain.Org(req.Diff.Organization), req.Diff.Name, req.Diff.Version)
+	diffsByConfig, err := s.groups.Diff(ctx, domain.Org(req.Reference.Organization), req.Reference.Namespace, req.Reference.Name, req.Reference.Version, domain.Org(req.Diff.Organization), req.Diff.Namespace, req.Diff.Name, req.Diff.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -242,7 +250,7 @@ func (s *KuiperGrpcServer) DiffConfigGroup(ctx context.Context, req *api.DiffReq
 func (s *KuiperGrpcServer) PlaceConfigGroup(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
 	println("REQ")
 	fmt.Printf("%+v\n", req)
-	tasks, err := s.groups.Place(ctx, domain.Org(req.Config.Organization), req.Config.Name, req.Config.Version, req.Namespace, req.Strategy)
+	tasks, err := s.groups.Place(ctx, domain.Org(req.Config.Organization), req.Config.Namespace, req.Config.Name, req.Config.Version, req.Strategy)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -253,7 +261,7 @@ func (s *KuiperGrpcServer) PlaceConfigGroup(ctx context.Context, req *api.PlaceR
 }
 
 func (s *KuiperGrpcServer) ListPlacementTaskByConfigGroup(ctx context.Context, req *api.ConfigId) (*api.ListPlacementTaskResp, error) {
-	tasks, err := s.groups.ListPlacementTasks(ctx, domain.Org(req.Organization), req.Name, req.Version)
+	tasks, err := s.groups.ListPlacementTasks(ctx, domain.Org(req.Organization), req.Namespace, req.Name, req.Version)
 	if err := mapError(err); err != nil {
 		return nil, err
 	}
@@ -336,7 +344,6 @@ func mapTasks(tasks []domain.PlacementTask) []*api.PlacementTask {
 		protoTasks = append(protoTasks, &api.PlacementTask{
 			Id:         task.Id(),
 			Node:       string(task.Node()),
-			Namespace:  string(task.Namespace()),
 			Status:     task.Status().String(),
 			AcceptedAt: task.AcceptedAtUTC().String(),
 			ResolvedAt: task.ResolveddAtUTC().String(),

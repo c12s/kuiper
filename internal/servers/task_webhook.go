@@ -48,7 +48,7 @@ func (tw *TaskWebhooks) UpdateStandaloneConfigTaskStatus(w http.ResponseWriter, 
 		log.Printf("could not map status %s", reply.Status)
 		return
 	}
-	updateErr := tw.placements.UpdateStatus(context.Background(), domain.Org(config.Organization), config.Name, config.Version, domain.ConfTypeStandalone, reply.Cmd.TaskId, status)
+	updateErr := tw.placements.UpdateStatus(context.Background(), domain.Org(config.Organization), config.Namespace, config.Name, config.Version, domain.ConfTypeStandalone, reply.Cmd.TaskId, status)
 	if updateErr != nil {
 		log.Println(updateErr)
 	}
@@ -80,7 +80,7 @@ func (tw *TaskWebhooks) UpdateConfigGroupTaskStatus(w http.ResponseWriter, r *ht
 		log.Printf("could not map status %s", reply.Status)
 		return
 	}
-	updateErr := tw.placements.UpdateStatus(context.Background(), domain.Org(config.Organization), config.Name, config.Version, domain.ConfTypeGroup, reply.Cmd.TaskId, status)
+	updateErr := tw.placements.UpdateStatus(context.Background(), domain.Org(config.Organization), config.Namespace, config.Name, config.Version, domain.ConfTypeGroup, reply.Cmd.TaskId, status)
 	if updateErr != nil {
 		log.Println(updateErr)
 	}
