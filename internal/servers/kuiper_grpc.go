@@ -2,7 +2,6 @@ package servers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/c12s/kuiper/internal/domain"
 	"github.com/c12s/kuiper/internal/services"
@@ -248,8 +247,6 @@ func (s *KuiperGrpcServer) DiffConfigGroup(ctx context.Context, req *api.DiffReq
 }
 
 func (s *KuiperGrpcServer) PlaceConfigGroup(ctx context.Context, req *api.PlaceReq) (*api.PlaceResp, error) {
-	println("REQ")
-	fmt.Printf("%+v\n", req)
 	tasks, err := s.groups.Place(ctx, domain.Org(req.Config.Organization), req.Config.Namespace, req.Config.Name, req.Config.Version, req.Strategy)
 	if err := mapError(err); err != nil {
 		return nil, err
