@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -69,4 +70,13 @@ func (s *AuthZService) Authorize(ctx context.Context, permName string, objKind s
 
 	log.Println("required permission not found")
 	return false
+}
+
+func (s *AuthZService) SetOutgoingContext(ctx context.Context) context.Context {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		log.Println("[WARN] no metadata in ctx when sending req")
+		return ctx
+	}
+	return metadata.NewOutgoingContext(ctx, md)
 }
