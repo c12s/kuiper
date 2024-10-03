@@ -37,6 +37,7 @@ func NewStandaloneConfigService(administrator *oortapi.AdministrationAsyncClient
 }
 
 func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.StandaloneConfig, schema *quasarapi.ConfigSchemaDetails) (*domain.StandaloneConfig, *domain.Error) {
+	ctx = s.authorizer.SetOutgoingContext(ctx)
 	_, err := s.meridian.GetNamespace(ctx, &meridian_api.GetNamespaceReq{
 		OrgId: string(config.Org()),
 		Name:  config.Namespace(),
