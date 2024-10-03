@@ -49,7 +49,7 @@ func (s *PlacementService) Place(ctx context.Context, config domain.Config, stra
 
 	if strategy.Name == "default" {
 		if strategy.Query == nil {
-			return nil, domain.NewError(domain.ErrTypeSchemaInvalid, "Query is required for default strategy")
+			strategy.Query = make([]*magnetarapi.Selector, 0)
 		}
 		nodes, _ = s.placeByQuery(ctx, config, strategy.Query)
 	} else if strategy.Name == "gossip" {
