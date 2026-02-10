@@ -88,7 +88,7 @@ func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.Standa
 	if putErr != nil {
 		return nil, putErr
 	}
-	err2 := s.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
+	err2 := s.administrator.SendRequest(ctx, &oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   fmt.Sprintf("%s/%s", config.Org(), config.Namespace()),
 			Kind: OortResNamespace,

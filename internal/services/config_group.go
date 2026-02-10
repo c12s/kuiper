@@ -78,7 +78,7 @@ func (s *ConfigGroupService) Put(ctx context.Context, config *domain.ConfigGroup
 	if err != nil {
 		return nil, err
 	}
-	err2 := s.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
+	err2 := s.administrator.SendRequest(ctx, &oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   fmt.Sprintf("%s/%s", config.Org(), config.Namespace()),
 			Kind: OortResNamespace,
