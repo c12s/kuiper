@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
+
+	"go.opentelemetry.io/otel"
 )
 
 type ConfigGroupService struct {
@@ -34,6 +36,10 @@ func NewConfigGroupService(administrator *oortapi.AdministrationAsyncClient, aut
 }
 
 func (s *ConfigGroupService) Put(ctx context.Context, config *domain.ConfigGroup, schema *quasarapi.ConfigSchemaDetails) (*domain.ConfigGroup, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "Put")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigPut, OortResOrg, string(config.Org())) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigPut))
 	}
@@ -72,7 +78,7 @@ func (s *ConfigGroupService) Put(ctx context.Context, config *domain.ConfigGroup
 	if err != nil {
 		return nil, err
 	}
-	err2 := s.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
+	err2 := s.administrator.SendRequest(ctx, &oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   fmt.Sprintf("%s/%s", config.Org(), config.Namespace()),
 			Kind: OortResNamespace,
@@ -91,6 +97,10 @@ func (s *ConfigGroupService) Put(ctx context.Context, config *domain.ConfigGroup
 }
 
 func (s *ConfigGroupService) Get(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.ConfigGroup, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "Get")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(domain.ConfTypeGroup, string(org), namespace, name, version)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -98,6 +108,10 @@ func (s *ConfigGroupService) Get(ctx context.Context, org domain.Org, namespace,
 }
 
 func (s *ConfigGroupService) List(ctx context.Context, org domain.Org, namespace string) ([]*domain.ConfigGroup, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "List")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResOrg, string(org)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -105,6 +119,10 @@ func (s *ConfigGroupService) List(ctx context.Context, org domain.Org, namespace
 }
 
 func (s *ConfigGroupService) Delete(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.ConfigGroup, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "Delete")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigPut, OortResConfig, OortConfigId(domain.ConfTypeGroup, string(org), namespace, name, version)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigPut))
 	}
@@ -112,6 +130,10 @@ func (s *ConfigGroupService) Delete(ctx context.Context, org domain.Org, namespa
 }
 
 func (s *ConfigGroupService) Diff(ctx context.Context, referenceOrg domain.Org, referenceNamespace, referenceName, referenceVersion string, diffOrg domain.Org, diffNamespace, diffName, diffVersion string) (map[string][]domain.Diff, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "Diff")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(domain.ConfTypeGroup, string(referenceOrg), referenceNamespace, referenceName, referenceVersion)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -130,6 +152,10 @@ func (s *ConfigGroupService) Diff(ctx context.Context, referenceOrg domain.Org, 
 }
 
 func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, namespace, name, version string, strategy *api.PlaceReq_Strategy) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "Place")
+	defer span.End()
+
 	config, err := s.store.Get(ctx, org, namespace, name, version)
 	if err != nil {
 		return nil, err
@@ -163,6 +189,10 @@ func (s *ConfigGroupService) Place(ctx context.Context, org domain.Org, namespac
 }
 
 func (s *ConfigGroupService) ListPlacementTasks(ctx context.Context, org domain.Org, namespace, name, version string) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.ConfigGroupService")
+	ctx, span := tracer.Start(ctx, "ListPlacementTasks")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(domain.ConfTypeGroup, string(org), namespace, name, version)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/c12s/kuiper/internal/domain"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.opentelemetry.io/otel"
 )
 
 type StandaloneConfigEtcdStore struct {
@@ -21,6 +22,10 @@ func NewStandaloneConfigEtcdStore(client *clientv3.Client) domain.StandaloneConf
 }
 
 func (s StandaloneConfigEtcdStore) Put(ctx context.Context, config *domain.StandaloneConfig) *domain.Error {
+	tracer := otel.Tracer("kuiper.StandaloneConfigEtcdStore")
+	ctx, span := tracer.Start(ctx, "Put")
+	defer span.End()
+
 	dao := StandaloneConfigDAO{
 		Org:       string(config.Org()),
 		Namespace: config.Namespace(),
@@ -47,6 +52,10 @@ func (s StandaloneConfigEtcdStore) Put(ctx context.Context, config *domain.Stand
 }
 
 func (s StandaloneConfigEtcdStore) Get(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigEtcdStore")
+	ctx, span := tracer.Start(ctx, "Get")
+	defer span.End()
+
 	key := StandaloneConfigDAO{
 		Org:       string(org),
 		Namespace: namespace,
@@ -72,6 +81,10 @@ func (s StandaloneConfigEtcdStore) Get(ctx context.Context, org domain.Org, name
 }
 
 func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org, namespace string) ([]*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigEtcdStore")
+	ctx, span := tracer.Start(ctx, "List")
+	defer span.End()
+
 	key := StandaloneConfigDAO{
 		Org:       string(org),
 		Namespace: namespace,
@@ -96,6 +109,10 @@ func (s StandaloneConfigEtcdStore) List(ctx context.Context, org domain.Org, nam
 }
 
 func (s StandaloneConfigEtcdStore) Delete(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigEtcdStore")
+	ctx, span := tracer.Start(ctx, "Delete")
+	defer span.End()
+
 	key := StandaloneConfigDAO{
 		Org:       string(org),
 		Namespace: namespace,

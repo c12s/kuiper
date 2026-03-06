@@ -14,6 +14,7 @@ import (
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	oortapi "github.com/c12s/oort/pkg/api"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -38,6 +39,10 @@ func NewPlacementStore(magnetar magnetarapi.MagnetarClient, aq agent_queue.Agent
 }
 
 func (s *PlacementService) Place(ctx context.Context, config domain.Config, strategy *api.PlaceReq_Strategy, cmd func(taskId string) ([]byte, *domain.Error), webhookPath string) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.PlacementService")
+	ctx, span := tracer.Start(ctx, "Place")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(config.Type(), string(config.Org()), config.Namespace(), config.Name(), config.Version())) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -86,6 +91,10 @@ func (s *PlacementService) Place(ctx context.Context, config domain.Config, stra
 }
 
 func (s *PlacementService) placeByQuery(ctx context.Context, config domain.Config, nodeQuery []*magnetarapi.Selector) ([]*magnetarapi.NodeStringified, *domain.Error) {
+	tracer := otel.Tracer("kuiper.PlacementService")
+	ctx, span := tracer.Start(ctx, "placeByQuery")
+	defer span.End()
+
 	queryReq := &magnetarapi.QueryOrgOwnedNodesReq{
 		Org: string(config.Org()),
 	}
@@ -109,6 +118,10 @@ func (s *PlacementService) placeByQuery(ctx context.Context, config domain.Confi
 }
 
 func (s *PlacementService) placeByGossip(ctx context.Context, config domain.Config, percentage int32) ([]*magnetarapi.NodeStringified, *domain.Error) {
+	tracer := otel.Tracer("kuiper.PlacementService")
+	ctx, span := tracer.Start(ctx, "placeByGossip")
+	defer span.End()
+
 	queryReq := &magnetarapi.ListOrgOwnedNodesReq{
 		Org: string(config.Org()),
 	}
@@ -147,10 +160,18 @@ func selectRandmNodes(nodes []*magnetarapi.NodeStringified, percentage int32) []
 }
 
 func (s *PlacementService) List(ctx context.Context, org domain.Org, namespace, name, version, configType string) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.PlacementService")
+	ctx, span := tracer.Start(ctx, "List")
+	defer span.End()
+
 	return s.store.ListByConfig(ctx, org, namespace, name, version, configType)
 }
 
 func (s *PlacementService) UpdateStatus(ctx context.Context, org domain.Org, namespace, name, version, configType, taskId string, status domain.PlacementTaskStatus) *domain.Error {
+	tracer := otel.Tracer("kuiper.PlacementService")
+	ctx, span := tracer.Start(ctx, "UpdateStatus")
+	defer span.End()
+
 	return s.store.UpdateStatus(ctx, org, namespace, name, version, configType, taskId, status)
 }
 

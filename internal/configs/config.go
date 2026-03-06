@@ -15,6 +15,8 @@ type Config struct {
 	webhooksAddress   string
 	webhookUrl        string
 	tokenKey          string
+	jaegerHost        string
+	jaegerGRPCPort    string
 }
 
 func (c *Config) NatsAddress() string {
@@ -57,6 +59,13 @@ func (c *Config) TokenKey() string {
 	return c.tokenKey
 }
 
+func (c *Config) JaegerGRPCEndpoint() string {
+	if c.jaegerHost == "" || c.jaegerGRPCPort == "" {
+		return ""
+	}
+	return c.jaegerHost + ":" + c.jaegerGRPCPort
+}
+
 func NewFromEnv() (*Config, error) {
 	return &Config{
 		natsAddress:       os.Getenv("NATS_ADDRESS"),
@@ -69,5 +78,7 @@ func NewFromEnv() (*Config, error) {
 		webhooksAddress:   os.Getenv("WEBHOOK_ADDRESS"),
 		webhookUrl:        os.Getenv("WEBHOOK_URL"),
 		tokenKey:          os.Getenv("SECRET_KEY"),
+		jaegerHost:        os.Getenv("JAEGER_HOST"),
+		jaegerGRPCPort:    os.Getenv("JAEGER_GRPC_PORT"),
 	}, nil
 }

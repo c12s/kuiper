@@ -9,6 +9,7 @@ import (
 
 	"github.com/c12s/kuiper/internal/domain"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.opentelemetry.io/otel"
 )
 
 type PlacementEtcdStore struct {
@@ -22,6 +23,10 @@ func NewPlacementEtcdStore(client *clientv3.Client) domain.PlacementStore {
 }
 
 func (s PlacementEtcdStore) Place(ctx context.Context, config domain.Config, req *domain.PlacementTask) *domain.Error {
+	tracer := otel.Tracer("kuiper.PlacementEtcdStore")
+	ctx, span := tracer.Start(ctx, "Place")
+	defer span.End()
+
 	dao := PlacementTaskDAO{
 		Id:         req.Id(),
 		Org:        string(config.Org()),
@@ -48,6 +53,10 @@ func (s PlacementEtcdStore) Place(ctx context.Context, config domain.Config, req
 }
 
 func (s PlacementEtcdStore) ListByConfig(ctx context.Context, org domain.Org, namespace, name string, version, configType string) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.PlacementEtcdStore")
+	ctx, span := tracer.Start(ctx, "ListByConfig")
+	defer span.End()
+
 	key := PlacementTaskDAO{
 		Org:       string(org),
 		Namespace: namespace,
@@ -73,6 +82,10 @@ func (s PlacementEtcdStore) ListByConfig(ctx context.Context, org domain.Org, na
 }
 
 func (s PlacementEtcdStore) UpdateStatus(ctx context.Context, org domain.Org, namespace, name string, version string, configType string, taskId string, status domain.PlacementTaskStatus) *domain.Error {
+	tracer := otel.Tracer("kuiper.PlacementEtcdStore")
+	ctx, span := tracer.Start(ctx, "UpdateStatus")
+	defer span.End()
+
 	key := PlacementTaskDAO{
 		Id:        taskId,
 		Org:       string(org),

@@ -12,6 +12,7 @@ import (
 	"github.com/c12s/kuiper/internal/services"
 	"github.com/c12s/kuiper/internal/store"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	"github.com/c12s/kuiper/internal/configs"
 	"github.com/c12s/kuiper/internal/servers"
@@ -85,7 +86,10 @@ func (a *app) init() {
 	configGroupService := services.NewConfigGroupService(administratorClient, authzService, configGroupStore, placementService, quasarClient)
 
 	kuiperGrpcServer := servers.NewKuiperServer(standaloneConfigService, configGroupService)
-	s := grpc.NewServer(grpc.UnaryInterceptor(servers.GetAuthInterceptor()))
+	s := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.UnaryInterceptor(servers.GetAuthInterceptor()),
+	)
 	api.RegisterKuiperServer(s, kuiperGrpcServer)
 	reflection.Register(s)
 	a.grpcServer = s
@@ -120,6 +124,11 @@ func (a *app) startWebhooks() {
 }
 
 func (a *app) Start() error {
+	shutdownTracing := initTracing(
+		"kuiper",
+		a.config.JaegerGRPCEndpoint(),
+	)
+	a.shutdownProcesses = append(a.shutdownProcesses, shutdownTracing)
 	a.init()
 	go a.startWebhooks()
 	return a.startGrpcServer()

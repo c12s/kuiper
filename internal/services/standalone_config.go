@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
+
+	"go.opentelemetry.io/otel"
 )
 
 type StandaloneConfigService struct {
@@ -37,6 +39,10 @@ func NewStandaloneConfigService(administrator *oortapi.AdministrationAsyncClient
 }
 
 func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.StandaloneConfig, schema *quasarapi.ConfigSchemaDetails) (*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "Put")
+	defer span.End()
+
 	ctx = s.authorizer.SetOutgoingContext(ctx)
 	_, err := s.meridian.GetNamespace(ctx, &meridian_api.GetNamespaceReq{
 		OrgId: string(config.Org()),
@@ -82,7 +88,7 @@ func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.Standa
 	if putErr != nil {
 		return nil, putErr
 	}
-	err2 := s.administrator.SendRequest(&oortapi.CreateInheritanceRelReq{
+	err2 := s.administrator.SendRequest(ctx, &oortapi.CreateInheritanceRelReq{
 		From: &oortapi.Resource{
 			Id:   fmt.Sprintf("%s/%s", config.Org(), config.Namespace()),
 			Kind: OortResNamespace,
@@ -101,6 +107,10 @@ func (s *StandaloneConfigService) Put(ctx context.Context, config *domain.Standa
 }
 
 func (s *StandaloneConfigService) Get(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "Get")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(domain.ConfTypeStandalone, string(org), namespace, name, version)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -108,6 +118,10 @@ func (s *StandaloneConfigService) Get(ctx context.Context, org domain.Org, names
 }
 
 func (s *StandaloneConfigService) List(ctx context.Context, org domain.Org, namespace string) ([]*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "List")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResOrg, string(org)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -115,6 +129,10 @@ func (s *StandaloneConfigService) List(ctx context.Context, org domain.Org, name
 }
 
 func (s *StandaloneConfigService) Delete(ctx context.Context, org domain.Org, namespace, name, version string) (*domain.StandaloneConfig, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "Delete")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigPut, OortResConfig, OortConfigId(domain.ConfTypeStandalone, string(org), namespace, name, version)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigPut))
 	}
@@ -122,6 +140,10 @@ func (s *StandaloneConfigService) Delete(ctx context.Context, org domain.Org, na
 }
 
 func (s *StandaloneConfigService) Diff(ctx context.Context, referenceOrg domain.Org, referenceNamespace, referenceName, referenceVersion string, diffOrg domain.Org, diffNamespace, diffName, diffVersion string) ([]domain.Diff, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "Diff")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(domain.ConfTypeStandalone, string(referenceOrg), referenceNamespace, referenceName, referenceVersion)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
@@ -140,6 +162,10 @@ func (s *StandaloneConfigService) Diff(ctx context.Context, referenceOrg domain.
 }
 
 func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, namespace, name, version string, strategy *api.PlaceReq_Strategy) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "Place")
+	defer span.End()
+
 	config, err := s.store.Get(ctx, org, namespace, name, version)
 	if err != nil {
 		return nil, err
@@ -173,6 +199,10 @@ func (s *StandaloneConfigService) Place(ctx context.Context, org domain.Org, nam
 }
 
 func (s *StandaloneConfigService) ListPlacementTasks(ctx context.Context, org domain.Org, namespace, name, version string) ([]domain.PlacementTask, *domain.Error) {
+	tracer := otel.Tracer("kuiper.StandaloneConfigService")
+	ctx, span := tracer.Start(ctx, "ListPlacementTasks")
+	defer span.End()
+
 	if !s.authorizer.Authorize(ctx, PermConfigGet, OortResConfig, OortConfigId(domain.ConfTypeStandalone, string(org), namespace, name, version)) {
 		return nil, domain.NewError(domain.ErrTypeUnauthorized, fmt.Sprintf("Permission denied: %s", PermConfigGet))
 	}
