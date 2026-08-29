@@ -156,6 +156,9 @@ func (s *PlacementService) UpdateStatus(ctx context.Context, org domain.Org, nam
 
 func deseminateConfig(ctx context.Context, nodeId string, cmd []byte, agentQueueClient agent_queue.AgentQueueClient, whUrl string) error {
 	log.Printf("diseminating to node %s", nodeId)
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		ctx = metadata.NewOutgoingContext(ctx, md)
+	}
 	_, err := agentQueueClient.DeseminateConfig(ctx, &agent_queue.DeseminateConfigRequest{
 		NodeId:  nodeId,
 		Config:  cmd,
