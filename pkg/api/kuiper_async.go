@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	"github.com/c12s/magnetar/pkg/messaging"
 	"github.com/c12s/magnetar/pkg/messaging/nats"
 	natsgo "github.com/nats-io/nats.go"
@@ -16,7 +17,7 @@ type KuiperAsyncClient struct {
 }
 
 func NewKuiperAsyncClient(address, nodeId string) (*KuiperAsyncClient, error) {
-	conn, err := natsgo.Connect(fmt.Sprintf("nats://%s", address))
+	conn, err := natsgo.Connect(fmt.Sprintf("nats://%s", address), magnetarapi.NatsOptions()...)
 	if err != nil {
 		return nil, err
 	}
