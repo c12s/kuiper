@@ -36,6 +36,10 @@ func (tw *TaskWebhooks) UpdateStandaloneConfigTaskStatus(w http.ResponseWriter, 
 		log.Println(err)
 		return
 	}
+	if reply.Cmd == nil {
+		log.Println("reply has no Cmd, skipping")
+		return
+	}
 	config := &api.StandaloneConfig{}
 	err = proto.Unmarshal(reply.Cmd.Config, config)
 	if err != nil {
@@ -66,6 +70,10 @@ func (tw *TaskWebhooks) UpdateConfigGroupTaskStatus(w http.ResponseWriter, r *ht
 	err = proto.Unmarshal(body, reply)
 	if err != nil {
 		log.Println(err)
+		return
+	}
+	if reply.Cmd == nil {
+		log.Println("reply has no Cmd, skipping")
 		return
 	}
 	config := &api.ConfigGroup{}
